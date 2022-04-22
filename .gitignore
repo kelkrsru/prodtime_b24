@@ -1,10 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-<<<<<<< HEAD
-*.pyc
-=======
->>>>>>> 27234b3 (Initial commit)
 *$py.class
 
 # C extensions
@@ -131,9 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-<<<<<<< HEAD
 
 # PyCharm
 .idea/
-=======
->>>>>>> 27234b3 (Initial commit)

@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Карточка сделки{% endblock %}
+{% block content %}
+  <div class="container mt-5">
+    <div class="d-flex flex-row-reverse align-items-center">
+      <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
+      <label for="show-all">Показывать все поля</label>
+      <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
+      <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
+      <select class="form-select me-3 w-25" id="select-template" >
+        {% for item in templates %}
+          <option value="{{ item.id }}">{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="container mt-3">
+    <table class="table table-striped align-baseline" id="main-table">
+      <thead>
+        <tr>
+          <th scope="col" width="5%" id="num">#</th>
+          <th scope="col" width="20%" id="prod">Товар</th>
+          <th scope="col" width="20%" id="print-form">В печатную форму</th>
+          <th scope="col" width="10%" id="price">Цена, руб.</th>
+          <th scope="col" width="5%" id="count">Кол-во</th>
+          <th scope="col" width="5%" id="unit">Ед. изм.</th>
+
+          <th scope="col" id="bonus" class="td-hidden">Скидка, %</th>
+          <th scope="col" id="bonus-sum" class="td-hidden">Сумма скидки, руб.</th>
+          <th scope="col" id="tax" class="td-hidden">Налог, %</th>
+          <th scope="col" id="tax-sum" class="td-hidden">Сумма налога, руб.</th>
+
+          <th scope="col" width="10%" id="sum">Сумма, руб.</th>
+          <th scope="col" width="10%" id="count-days">Кол-во раб. дней</th>
+          <th scope="col" width="10%" id="prod-time">Срок производства</th>
+          <th scope="col" width="5%" id="finish">Готово</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if products %}
+          {% for product in products %}
+            <tr>
+              <th scope="row">{{ forloop.counter }}</th> {# Номер строки #}
+              <td>{{ product.name }}</td> {# Наименование продукта #}
+              <td data-id="{{ product.id }}"><input class="form-control text-input" type="text" name="print-form-1"
+                           value="{{ product.name_for_print }}"></td> {# Наименование в печатную форму #}
+              <!--<td class="editable" data-id="{{ product.id }}" data-type="name-for-print">{{ product.name_for_print }}</td>-->
+              <td>{{ product.price_netto}}</td> {# Цена за штуку #}
+              <td>{{ product.quantity }}</td> {# Количество #}
+              <td>{{ product.measure_name }}</td> {# Единица измерения #}
+
+              <td class="td-hidden">{{ product.bonus }}</td> {# Процент скидки #}
+              <td class="td-hidden">{{ product.bonus_sum }}</td> {# Сумма скидки #}
+              <td class="td-hidden">{{ product.tax }}</td> {# Процент налога #}
+              <td class="td-hidden">{{ product.tax_sum }}</td> {# Сумма налога #}
+
+              <td>{{ product.sum }}</td> {# Общая стоимость с налогом и скидкой #}
+              <td data-id="{{ product.id }}"><input class="form-control number-input" type="number" name="count-days-1"
+                           value="{{ product.count_days }}"></td> {# Количество рабочих дней #}
+              <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
+                         name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
+              {% if product.finish == True %}
+                <td data-id="{{ product.id }}"><input class="form-check-input finish-check-input" type="checkbox" checked></td> {# Готовность изделия #}
+              {% else %}
+                <td data-id="{{ product.id }}"><input class="form-check-input finish-check-input" type="checkbox"></td> {# Готовность изделия #}
+              {% endif %}
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="9">Товары отсутствуют в сделке</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+{% block user_scripts %}
+  <script>
+    $(".finish-check-input").change(function() {
+        const td = $(this).parent("td");
+        if (this.checked){
+            sendToServer(td.data("id"),'true','finish');
+            createTaskandDeal(td.data("id"),"{{ member_id }}")
+        }
+        else {
+            sendToServer(td.data("id"),'false','finish');
+        }
+    });
+
+    $(".datepicker-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".datepicker-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'prod-time',this);
+    });
+
+    $(".number-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".number-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'count-days',this);
+    });
+
+    $(".text-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".text-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'name-for-print',this);
+    });
+
+    function sendToServer(id,value,type,control) {
+        $.ajax({
+            url: "{% url 'dealcard:save' %}",
+            type: "POST",
+            data: {id: id, type: type, value: value},
+        })
+            .done(function () {
+                $(control).removeClass('text-danger');
+                $(control).addClass('text-success');
+            })
+            .fail(function () {
+                $(control).removeClass('text-success');
+                $(control).addClass('text-danger');
+            });
+    }
+
+    function createTaskandDeal(id, member_id) {
+        $.ajax({
+            url: "{% url 'dealcard:create' %}",
+            type: "POST",
+            data: {id: id, member_id: member_id},
+        })
+            .done(function (response) {
+                if(response.result === 'nodeal'){
+                    alert(response.info);
+                }
+                else if(response.result === 'notask'){
+                    alert(response.info);
+                }
+                else if(response.result === 'dealandtask'){
+                    alert(response.info);
+                }
+            })
+            .fail(function () {
+                alert('Ошибка при создании сделки на отгрузку');
+            });
+    }
+
+    function createDoc() {
+        const select = document.getElementById("select-template");
+        const select_value = select.value;
+        $.ajax({
+            url: "{% url 'dealcard:create-doc' %}",
+            type: "POST",
+            data: {templ_id: select_value, member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+        })
+            .done(function (response) {
+                console.log(response);
+                alert('Документ успешно создан в сделке');
+            })
+            .fail(function () {
+                alert('Ошибка создания документа в сделке');
+            });
+    }
+  </script>
+
+{% endblock %}

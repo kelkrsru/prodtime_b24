@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="//api.bitrix24.com/api/v1/"></script>
+<title></title>
+</head>
+<body>
+<div id="message"><h4>Установка приложения "Срок производства".</h4></div>
+</body>
+</html>
+{% load static %}
+<script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+<script type="text/javascript">
+  BX24.installFinish();
+</script>

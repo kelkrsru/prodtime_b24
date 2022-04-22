@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}Ошибка приложения{% endblock %}
+{% block content %}
+  <div class="container mt-3">
+    <h3>Ошибка: {{ error_name }}</h3>
+    <p>
+      Описание ошибки: {{ error_description }}
+    </p>
+
+  </div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Карточка сделки{% endblock %}
+{% block content %}
+  <div class="container mt-5">
+    <div class="row row-cols-2">
+      <div class="col card">
+        <div class="card-header fw-bold">
+          Создание сделки и задачи к ней
+        </div>
+        <div class="card-body">
+          {% load user_filters %}
+          {% if form.errors %}
+            {% for field in form %}
+              {% for error in field.errors %}
+                <div class="alert alert-danger">
+                  {{ field.label }} {{ error|escape }}
+                </div>
+              {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+              <div class="alert alert-danger">
+                {{ error|escape }}
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="post" action="{% url 'settings:index' %}">
+            {% csrf_token %}
+
+            {% for field in form %}
+              <div class="form-group row mt-2"
+                {% if field.field.required %}
+                  aria-required="true"
+                {% else %}
+                  aria-required="false"
+                {% endif %}
+              >
+                <label for="{{ field.id_for_label }}">
+                  {{ field.label }}
+                    {% if field.field.required %}
+                      <span class="required text-danger">*</span>
+                    {% endif %}
+                </label>
+                {% if field|widgettype == 'CheckboxInput' %}
+                  <div class="form-check form-switch mt-1">
+                    {{ field|addclass:'form-check-input' }}
+                  </div>
+                {% else %}
+                  {{ field|addclass:'form-control' }}
+                {% endif %}
+              </div>
+              <div>
+                {% if field.help_text %}
+                  <small
+                          id="{{ field.id_for_label }}-help"
+                          class="form-text text-muted"
+                  >
+                    {{ field.help_text|safe }}
+                  </small>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <div class="d-flex justify-content-end">
+              <input type="text" name='member_id' value="{{ member_id }}" hidden>
+              <input type="submit" class="btn btn-outline-success" name="save-settings" value="Сохранить">
+            </div>
+          </form>
+          <div class="alert alert-info mt-3">
+            <strong>Наименование сделки и Наименование задачи</strong> поддерживают следующие поля:<br>
+            {ProductName} - наименование товара, по которому указывается готовность<br>
+            {DealId} - ID сделки
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row row-cols-1 mt-3">
+      <div class="col card">
+        <div class="card-header fw-bold">
+          Коды полей для вставки в шаблон
+        </div>
+        <div class="card-body">
+          <table class="table table-striped align-baseline" id="main-table">
+            <thead>
+              <tr>
+                <th scope="col" width="5%" id="num">#</th>
+                <th scope="col" width="40%" id="prod">Наименование</th>
+                <th scope="col" width="35%" id="print-form">Код в шаблон</th>
+                <th scope="col" width="20%" id="price">Копировать</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for field in fields %}
+                <tr>
+                  <th scope="row">{{ forloop.counter }}</th> {# Номер строки #}
+                  <td>{{ field.name }}</td> {# Наименование #}
+                  <td><input type="text" id="td-code-{{ forloop.counter }}" value="{{ field.code }}" disabled></td> {# Код в шаблон #}
+                  <td><button class="btn btn-success text-white me-3" onclick="CopyToBuffer('td-code-{{ forloop.counter }}')">✔</button></td> {# Копировать #}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

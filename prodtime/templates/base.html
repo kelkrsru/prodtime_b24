@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    {% include 'includes/meta_tags.html'%}
+    <title>{% block title %}Приложение "Срок производства"{% endblock %}</title>
+  </head>
+  <body>
+    <header>
+      {% include 'includes/header.html' %}
+    </header>
+    <main>
+      {% block content %}
+
+      {% endblock %}
+    </main>
+    <footer>
+      {% include 'includes/footer.html' %}
+    </footer>
+    {% include 'includes/scripts.html' %}
+    {% block user_scripts %}
+    {% endblock %}
+  </body>
+</html>

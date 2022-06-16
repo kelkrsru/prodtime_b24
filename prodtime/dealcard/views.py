@@ -191,12 +191,14 @@ def create(request):
     try:
         bx24_deal = DealB24(prodtime.deal_id, portal)
         bx24_deal.get_deal_responsible()
+        bx24_deal.get_deal_company()
         title_new_deal = (settings_portal.name_deal
                           .replace('{ProductName}', prodtime.name)
                           .replace('{DealId}', str(prodtime.deal_id)))
-        new_deal_id = bx24_deal.create_deal(title_new_deal, 'NEW',
+        new_deal_id = bx24_deal.create_deal(title_new_deal, 'C2:NEW',
                                             bx24_deal.deal_responsible,
-                                            prodtime.deal_id)
+                                            prodtime.deal_id,
+                                            bx24_deal.deal_company)
         prod_row = bx24_deal.get_deal_product_by_id(prodtime.product_id_b24)
         prod_row['ownerId'] = new_deal_id
         del prod_row['id']
@@ -302,6 +304,7 @@ def _create_portal(member_id: str) -> Portals:
     if ((portal.auth_id_create_date + datetime.timedelta(0, 3600)) <
             timezone.now()):
         bx24 = Bitrix24(portal.name)
+        bx24.auth_hostname = 'oauth.bitrix.info'
         bx24._refresh_token = portal.refresh_id
         bx24.client_id = portal.client_id
         bx24.client_secret = portal.client_secret
@@ -339,6 +342,7 @@ class DealB24(ObjB24):
         self.deal_id = deal_id
         self.deal_products = None
         self.deal_responsible = None
+        self.deal_company = None
 
     def get_deal_products(self):
         """Получить все продукты сделки"""
@@ -357,23 +361,34 @@ class DealB24(ObjB24):
         return self._check_error(result)['productRow']
 
     def get_deal_responsible(self):
-        """Получить ответственного за сделку"""
+        """Получить ответственного за сделку."""
 
         method_rest = 'crm.deal.get'
         params = {'id': self.deal_id}
         result = self.bx24.call(method_rest, params)
         self.deal_responsible = self._check_error(result)['ASSIGNED_BY_ID']
 
-    def create_deal(self, title, stage_id, responsible_id, rel_deal_id):
+    def get_deal_company(self):
+        """Получить компанию сделки."""
+
+        method_rest = 'crm.deal.get'
+        params = {'id': self.deal_id}
+        result = self.bx24.call(method_rest, params)
+        self.deal_company = self._check_error(result)['COMPANY_ID']
+
+    def create_deal(self, title, stage_id, responsible_id, rel_deal_id,
+                    company_id):
         """Создать сделку в Битрикс24"""
 
         method_rest = 'crm.deal.add'
         params = {
             'fields': {
                 'TITLE': title,
+                'CATEGORY_ID': '2',
                 'STAGE_ID': stage_id,
                 'ASSIGNED_BY_ID': responsible_id,
-                'UF_CRM_1647942413': rel_deal_id,
+                'UF_CRM_1647858722': rel_deal_id,
+                'COMPANY_ID': company_id,
             }
         }
         result = self.bx24.call(method_rest, params)

@@ -13,6 +13,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'devkel.ru',
+    'prilozhenie.plazma-t.ru',
 ]
 
 
@@ -37,7 +38,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    #'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'prodtime.urls'
@@ -69,10 +70,10 @@ WSGI_APPLICATION = 'prodtime.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'a0646951_prodtime',
-        'USER': 'a0646951_prodtime',
-        'PASSWORD': 'mj95RkD6',
-        'HOST': 'localhost',
+        'NAME': 'dbprilozhenie',
+        'USER': 'userprilozhenie',
+        'PASSWORD': 'kyA5f!wv4Y3Me5J',
+        'HOST': '127.0.0.1',
     }
 }
 
@@ -110,9 +111,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
-
 STATIC_URL = 'static/'
-STATIC_ROOT = ('/home/a0646951/domains/devkel.ru/public_html/static/')
+STATIC_ROOT = ('/home/bitrix/ext_www/prilozhenie.plazma-t.ru/static/')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Default primary key field type

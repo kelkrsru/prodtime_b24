@@ -15,7 +15,7 @@ def install(request):
 
     params: dict[str, str] = {
         'PLACEMENT': 'CRM_DEAL_DETAIL_TAB',
-        'HANDLER': 'https://devkel.ru/dealcard/', ##########
+        'HANDLER': 'https://prilozhenie.plazma-t.ru/dealcard/', ##########
         'TITLE': 'Срок производства',
         'DESCRIPTION': 'Приложение для указания сроков производства товаров'
     }

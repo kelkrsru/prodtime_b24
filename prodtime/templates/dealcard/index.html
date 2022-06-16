@@ -43,9 +43,7 @@
             <tr>
               <th scope="row">{{ forloop.counter }}</th> {# Номер строки #}
               <td>{{ product.name }}</td> {# Наименование продукта #}
-              <td data-id="{{ product.id }}"><input class="form-control text-input" type="text" name="print-form-1"
-                           value="{{ product.name_for_print }}"></td> {# Наименование в печатную форму #}
-              <!--<td class="editable" data-id="{{ product.id }}" data-type="name-for-print">{{ product.name_for_print }}</td>-->
+              <td data-id="{{ product.id }}"><textarea class="form-control text-input" name="print-form-1" oninput='this.style.height = "";this.style.height = this.scrollHeight + "px"'>{{ product.name_for_print }}</textarea></td>
               <td>{{ product.price_netto}}</td> {# Цена за штуку #}
               <td>{{ product.quantity }}</td> {# Количество #}
               <td>{{ product.measure_name }}</td> {# Единица измерения #}

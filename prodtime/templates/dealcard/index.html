@@ -14,6 +14,11 @@
         {% endfor %}
       </select>
     </div>
+    <div class="d-flex flex-row-reverse align-items-center mt-3">
+      <button class="btn btn-outline-primary" onclick="HtmlTOExcel('xlsx')">Выгрузить таблицу в Excel</button>
+      <button class="btn btn-outline-primary me-3" onclick="copyProducts()">Копировать товары в каталог и сделку</button>
+      <button class="btn btn-outline-primary me-3" onclick="">Передать суммарный эквивалент в сделку</button>
+    </div>
   </div>
   <div class="container mt-3">
     <table class="table table-striped align-baseline" id="main-table">
@@ -173,6 +178,28 @@
             .fail(function () {
                 alert('Ошибка создания документа в сделке');
             });
+    }
+
+    function copyProducts() {
+        $.ajax({
+            url: "{% url 'dealcard:copy-products' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+        })
+            .done(function (response) {
+                console.log(response);
+            })
+            .fail(function () {
+                alert('Ошибка копирования товаров');
+            });
+    }
+
+    function HtmlTOExcel(type, fun, dl) {
+      var elt = document.getElementById('main-table');
+      var wb = XLSX.utils.table_to_book(elt, { sheet: "ProdTime", raw: true });
+      return dl ?
+          XLSX.write(wb, { bookType: type, bookSST: true, type: 'base64' }) :
+          XLSX.writeFile(wb, fun || ('prodtime.' + (type || 'xlsx')));
     }
   </script>
 

@@ -133,6 +133,12 @@ def index(request):
             product_value['id'] = prodtime.pk
         products.append(product_value)
 
+    products_in_db = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
+    for product in products_in_db:
+        if not next((x for x in products if
+                     x['product_id_b24'] == product.product_id_b24), None):
+            product.delete()
+
     context = {
         'title': title,
         'products': products,
@@ -263,10 +269,12 @@ def create_doc(request):
                 prods_values[field['code'].strip('{}')] = (
                     product[field['code_db']].strftime('%d.%m.%Y'))
                 continue
-            if field['code_db'] == 'prod_time' and not product[field['code_db']]:
+            if field['code_db'] == 'prod_time' and not product[
+                field['code_db']]:
                 prods_values[field['code'].strip('{}')] = 'Не указан'
                 continue
-            if field['code_db'] == 'count_days' and not product[field['code_db']]:
+            if field['code_db'] == 'count_days' and not product[
+                field['code_db']]:
                 prods_values[field['code'].strip('{}')] = '-'
                 continue
             prods_values[field['code'].strip('{}')] = str(
@@ -294,6 +302,50 @@ def create_doc(request):
         })
 
     return JsonResponse({'result': result})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def copy_products(request):
+    """Метод копирования товаров в каталог и сделку."""
+
+    member_id = request.POST.get('member_id')
+    deal_id = int(request.POST.get('deal_id'))
+    portal: Portals = _create_portal(member_id)
+
+    products = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
+
+    for product in products:
+        if product.name == product.name_for_print:
+            continue
+        try:
+            product_in_catalog = ProductB24(portal, product.product_id_b24)
+            section_id = product_in_catalog.props.get('SECTION_ID')
+            element_list = ListsB24(portal, 19)
+            element_list.get_element_by_filter(section_id)
+            if not element_list.element_props:
+                new_section_id = 93
+            else:
+                new_section_id = list(element_list.element_props[0]
+                                      .get('PROPERTY_79').values())[0]
+            product_in_catalog.props['NAME'] = product.name_for_print
+            product_in_catalog.props['SECTION_ID'] = new_section_id
+            del product_in_catalog.props['ID']
+            new_id_product_in_catalog = product_in_catalog.add_catalog()
+            product_in_catalog.productrow[
+                'productId'] = new_id_product_in_catalog
+            product_in_catalog.productrow[
+                'productName'] = product.name_for_print
+            del product_in_catalog.productrow['id']
+            result = product_in_catalog.update(product.product_id_b24)
+
+        except RuntimeError as ex:
+            return render(request, 'error.html', {
+                'error_name': ex.args[0],
+                'error_description': ex.args[1]
+            })
+
+    return JsonResponse({'result': 'ok'})
 
 
 def _create_portal(member_id: str) -> Portals:
@@ -477,3 +529,67 @@ class TaskB24(ObjB24):
         }
         result = self.bx24.call(method_rest, params)
         return result
+
+
+class ProductB24(ObjB24):
+    """Класс товара каталога Битрикс24."""
+
+    def __init__(self, portal, product_id):
+        super(ProductB24, self).__init__(portal)
+        self.id = product_id
+        self.productrow = None
+        self.id_catalog = self.get_product_catalog_id()
+        self.props = self.get_properties()
+
+    def get_product_catalog_id(self):
+        method_rest = 'crm.item.productrow.get'
+        params = {'id': self.id}
+        result = self.bx24.call(method_rest, params)
+        self.productrow = self._check_error(result).get('productRow')
+        return self.productrow.get('productId')
+
+    def get_properties(self):
+        """Метод получения свойств товара каталога."""
+        method_rest = 'crm.product.get'
+        params = {'id': self.id_catalog}
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
+    def add_catalog(self):
+        """Метод добавления товара в каталог."""
+        method_rest = 'crm.product.add'
+        params = {'fields': self.props}
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
+    def update(self, product_id):
+        """Метод изменения товарной позиции."""
+        method_rest = 'crm.item.productrow.update'
+        params = {
+            'id': product_id,
+            'fields': self.productrow
+        }
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
+
+class ListsB24(ObjB24):
+    """Class List Bitrix24."""
+
+    def __init__(self, portal, list_id):
+        super(ListsB24, self).__init__(portal)
+        self.id = list_id
+        self.element_props = None
+
+    def get_element_by_filter(self, section_id):
+        """Get element list by id."""
+        method_rest = 'lists.element.get'
+        params = {
+            'IBLOCK_TYPE_ID': 'lists',
+            'IBLOCK_ID': self.id,
+            'FILTER': {
+                '=PROPERTY_78': [section_id],
+            },
+        }
+        result = self.bx24.call(method_rest, params)
+        self.element_props = self._check_error(result)

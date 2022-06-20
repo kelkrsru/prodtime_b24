@@ -8,4 +8,5 @@ urlpatterns = [
     path('save/', views.save, name='save'),
     path('create/', views.create, name='create'),
     path('create-doc/', views.create_doc, name='create-doc'),
+    path('copy-products/', views.copy_products, name='copy-products')
 ]

@@ -17,7 +17,8 @@ function showAll() {
     document.getElementById("tax").width="5%"
     document.getElementById("tax-sum").width="5%"
     document.getElementById("sum").width="5%"
-    document.getElementById("count-days").width="10%"
+    document.getElementById("count-days").width="5%"
+    document.getElementById("equivalent").width="5%"
     document.getElementById("prod-time").width="10%"
     document.getElementById("finish").width="5%"
   } else {
@@ -26,13 +27,14 @@ function showAll() {
       all_hidden_cels[i].style.display="none";
     }
     document.getElementById("num").width="5%"
-    document.getElementById("prod").width="20%"
-    document.getElementById("print-form").width="20%"
+    document.getElementById("prod").width="15%"
+    document.getElementById("print-form").width="15%"
     document.getElementById("price").width="10%"
     document.getElementById("count").width="5%"
     document.getElementById("unit").width="5%"
     document.getElementById("sum").width="10%"
     document.getElementById("count-days").width="10%"
+    document.getElementById("equivalent").width="10%"
     document.getElementById("prod-time").width="10%"
     document.getElementById("finish").width="5%"
   }

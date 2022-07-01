@@ -136,6 +136,24 @@ class ProdTime(CreatedModel):
         null=True,
         blank=True,
     )
+    equivalent = models.DecimalField(
+        verbose_name='Эквивалент',
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+    equivalent_count = models.DecimalField(
+        verbose_name='Эквивалент с учетом количества',
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+    is_change_equivalent = models.BooleanField(
+        verbose_name='Ручное изменение эквивалента',
+        default=False,
+    )
     finish = models.BooleanField(
         verbose_name='Готовность изделия',
         default=False,

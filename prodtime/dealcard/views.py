@@ -3,12 +3,15 @@ import decimal
 import json
 
 from typing import Dict, Any
+
+from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
+from openpyxl import Workbook
 
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal
@@ -37,6 +40,8 @@ def index(request):
         })
 
     portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
 
     try:
         bx24_deal = DealB24(deal_id, portal)
@@ -131,6 +136,31 @@ def index(request):
                 portal=portal,
             )
             product_value['id'] = prodtime.pk
+
+        # Работа с эквивалентом
+        if prodtime.is_change_equivalent:
+            product_value['equivalent'] = str(prodtime.equivalent).replace(
+                ',', '.')
+        else:
+            product_in_catalog = ProductB24(portal,
+                                            prodtime.product_id_b24)
+            equivalent_code = settings_portal.equivalent_code
+            if (not product_in_catalog.props
+                    or equivalent_code not in product_in_catalog.props
+                    or not product_in_catalog.props.get(equivalent_code)):
+                product_value['equivalent'] = ''
+                prodtime.equivalent = 0
+            else:
+                product_value['equivalent'] = list(
+                    product_in_catalog.props.get(
+                        equivalent_code).values())[1]
+                prodtime.equivalent = decimal.Decimal(
+                    product_value['equivalent'])
+            prodtime.save()
+        if prodtime.equivalent and prodtime.quantity:
+            prodtime.equivalent_count = (prodtime.equivalent *
+                                         prodtime.quantity)
+            prodtime.save()
         products.append(product_value)
 
     products_in_db = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
@@ -139,9 +169,14 @@ def index(request):
                      x['product_id_b24'] == product.product_id_b24), None):
             product.delete()
 
+    sum_equivalent = ProdTime.objects.filter(
+        portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
+    sum_equivalent = sum_equivalent['equivalent_count__sum']
+
     context = {
         'title': title,
         'products': products,
+        'sum_equivalent': sum_equivalent,
         'member_id': member_id,
         'deal_id': deal_id,
         'templates': templates,
@@ -165,6 +200,12 @@ def save(request):
         prodtime.prod_time = value
     if type_field == 'count-days':
         prodtime.count_days = value
+    if type_field == 'equivalent':
+        if value:
+            prodtime.equivalent = value
+            prodtime.equivalent_count = (decimal.Decimal(value)
+                                         * prodtime.quantity)
+            prodtime.is_change_equivalent = True
     if type_field == 'finish':
         if value == 'true':
             prodtime.finish = True
@@ -201,10 +242,15 @@ def create(request):
         title_new_deal = (settings_portal.name_deal
                           .replace('{ProductName}', prodtime.name)
                           .replace('{DealId}', str(prodtime.deal_id)))
-        new_deal_id = bx24_deal.create_deal(title_new_deal, 'C2:NEW',
-                                            bx24_deal.deal_responsible,
-                                            prodtime.deal_id,
-                                            bx24_deal.deal_company)
+        new_deal_id = bx24_deal.create_deal(
+            title_new_deal,
+            settings_portal.category_id,
+            settings_portal.stage_code,
+            bx24_deal.deal_responsible,
+            prodtime.deal_id,
+            settings_portal.real_deal_code,
+            bx24_deal.deal_company
+        )
         prod_row = bx24_deal.get_deal_product_by_id(prodtime.product_id_b24)
         prod_row['ownerId'] = new_deal_id
         del prod_row['id']
@@ -269,12 +315,12 @@ def create_doc(request):
                 prods_values[field['code'].strip('{}')] = (
                     product[field['code_db']].strftime('%d.%m.%Y'))
                 continue
-            if field['code_db'] == 'prod_time' and not product[
-                field['code_db']]:
+            if (field['code_db'] == 'prod_time'
+                    and not product[field['code_db']]):
                 prods_values[field['code'].strip('{}')] = 'Не указан'
                 continue
-            if field['code_db'] == 'count_days' and not product[
-                field['code_db']]:
+            if (field['code_db'] == 'count_days'
+                    and not product[field['code_db']]):
                 prods_values[field['code'].strip('{}')] = '-'
                 continue
             prods_values[field['code'].strip('{}')] = str(
@@ -312,7 +358,10 @@ def copy_products(request):
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
     portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
 
+    result_copy = 'error'
     products = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
 
     for product in products:
@@ -321,13 +370,19 @@ def copy_products(request):
         try:
             product_in_catalog = ProductB24(portal, product.product_id_b24)
             section_id = product_in_catalog.props.get('SECTION_ID')
-            element_list = ListsB24(portal, 19)
-            element_list.get_element_by_filter(section_id)
+            element_list = ListsB24(portal, settings_portal.section_list_id)
+            element_list.get_element_by_filter(
+                section_id, settings_portal.real_section_code)
             if not element_list.element_props:
-                new_section_id = 93
+                new_section_id = settings_portal.default_section_id
             else:
-                new_section_id = list(element_list.element_props[0]
-                                      .get('PROPERTY_79').values())[0]
+                new_section_id = list(
+                    element_list.element_props[0].get(
+                        settings_portal.copy_section_code).values())[0]
+            if product.is_change_equivalent:
+                product_in_catalog.props[settings_portal.equivalent_code] = {}
+                product_in_catalog.props[settings_portal.equivalent_code][
+                    'value'] = str(product.equivalent)
             product_in_catalog.props['NAME'] = product.name_for_print
             product_in_catalog.props['SECTION_ID'] = new_section_id
             del product_in_catalog.props['ID']
@@ -338,6 +393,8 @@ def copy_products(request):
                 'productName'] = product.name_for_print
             del product_in_catalog.productrow['id']
             result = product_in_catalog.update(product.product_id_b24)
+            if 'productRow' in result:
+                result_copy = 'ok'
 
         except RuntimeError as ex:
             return render(request, 'error.html', {
@@ -345,7 +402,99 @@ def copy_products(request):
                 'error_description': ex.args[1]
             })
 
-    return JsonResponse({'result': 'ok'})
+    return JsonResponse({'result': result_copy})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def send_equivalent(request):
+    """Метод отправки суммарного эквивалента в сделку."""
+
+    member_id = request.POST.get('member_id')
+    deal_id = int(request.POST.get('deal_id'))
+    portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
+
+    sum_equivalent = ProdTime.objects.filter(
+        portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
+    sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
+    deal = DealB24(deal_id, portal)
+    deal.send_equivalent(settings_portal.sum_equivalent_code, sum_equivalent)
+
+    return JsonResponse({'result': sum_equivalent})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def export_excel(request):
+    """Метод экспорта в excel."""
+
+    member_id = request.GET.get('member_id')
+    deal_id = int(request.GET.get('deal_id'))
+    portal: Portals = _create_portal(member_id)
+
+    products = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.'
+                     'spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename=report.xlsx'
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = 'Prodtime'
+
+    columns = [
+        'Товар',
+        'В печатную форму',
+        'Цена, руб.',
+        'Кол-во',
+        'Ед. изм.',
+        'Скидка, %',
+        'Сумма скидки, руб.',
+        'Налог, %',
+        'Сумма налога, руб.',
+        'Сумма, руб.',
+        'Кол-во раб. дней',
+        'Экв-нт',
+        'Суммарный экв-нт',
+        'Срок производства'
+    ]
+    row_num = 1
+
+    for col_num, column_title in enumerate(columns, 1):
+        cell = worksheet.cell(row=row_num, column=col_num)
+        cell.value = column_title
+
+    for product in products:
+        row_num += 1
+
+        row = [
+            product.name,
+            product.name_for_print,
+            product.price_netto,
+            product.quantity,
+            product.measure_name,
+            product.bonus,
+            product.bonus_sum,
+            product.tax,
+            product.tax_sum,
+            product.sum,
+            product.count_days,
+            product.equivalent,
+            product.equivalent_count,
+            product.prod_time,
+        ]
+
+        for col_num, cell_value in enumerate(row, 1):
+            cell = worksheet.cell(row=row_num, column=col_num)
+            cell.value = cell_value
+
+    workbook.save(response)
+
+    return response
 
 
 def _create_portal(member_id: str) -> Portals:
@@ -428,18 +577,18 @@ class DealB24(ObjB24):
         result = self.bx24.call(method_rest, params)
         self.deal_company = self._check_error(result)['COMPANY_ID']
 
-    def create_deal(self, title, stage_id, responsible_id, rel_deal_id,
-                    company_id):
+    def create_deal(self, title, category_id, stage_id, responsible_id,
+                    rel_deal_id, rel_deal_code, company_id):
         """Создать сделку в Битрикс24"""
 
         method_rest = 'crm.deal.add'
         params = {
             'fields': {
                 'TITLE': title,
-                'CATEGORY_ID': '2',
+                'CATEGORY_ID': category_id,
                 'STAGE_ID': stage_id,
                 'ASSIGNED_BY_ID': responsible_id,
-                'UF_CRM_1647858722': rel_deal_id,
+                rel_deal_code: rel_deal_id,
                 'COMPANY_ID': company_id,
             }
         }
@@ -452,6 +601,19 @@ class DealB24(ObjB24):
         method_rest = 'crm.item.productrow.add'
         params = {
             'fields': prod_row
+        }
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
+    def send_equivalent(self, code_equivalent, value_equivalent):
+        """Обновить эквивалент в сделке."""
+
+        method_rest = 'crm.deal.update'
+        params = {
+            'id': self.deal_id,
+            'fields': {
+                code_equivalent: value_equivalent
+            }
         }
         result = self.bx24.call(method_rest, params)
         return self._check_error(result)
@@ -471,8 +633,6 @@ class TemplateDocB24(ObjB24):
             }
         }
         result = self.bx24.call(method_rest, params)
-        # with open('/home/a0646951/domains/devkel.ru/logs/templates.log', 'w') as f:
-        #     json.dump(result, f)
         return self._check_error(result)
 
     def create_docs(self, template_id, deal_id, values):
@@ -581,14 +741,14 @@ class ListsB24(ObjB24):
         self.id = list_id
         self.element_props = None
 
-    def get_element_by_filter(self, section_id):
+    def get_element_by_filter(self, section_id, real_section_code):
         """Get element list by id."""
         method_rest = 'lists.element.get'
         params = {
             'IBLOCK_TYPE_ID': 'lists',
             'IBLOCK_ID': self.id,
             'FILTER': {
-                '=PROPERTY_78': [section_id],
+                f'={real_section_code}': [section_id],
             },
         }
         result = self.bx24.call(method_rest, params)

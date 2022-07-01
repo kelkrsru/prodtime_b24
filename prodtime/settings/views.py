@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from typing import Optional
 
 from .models import SettingsPortal
-from .forms import SettingsPortalForm
+from .forms import SettingsDealPortalForm, SettingsEquivalentPortalForm
 from core.models import TemplateDocFields, Portals
 from dealcard.views import _create_portal
 
@@ -30,24 +30,39 @@ def index(request):
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
-    if 'save-settings' in request.POST:
-        form: SettingsPortalForm = SettingsPortalForm(
+    if 'save-settings-deal' in request.POST:
+        form_deal: SettingsDealPortalForm = SettingsDealPortalForm(
             request.POST or None,
             instance=settings_portal,
         )
-        if form.is_valid():
-            fields_form = form.save(commit=False)
+        if form_deal.is_valid():
+            fields_form = form_deal.save(commit=False)
             fields_form.portal = portal
             fields_form.save()
     else:
-        form: SettingsPortalForm = SettingsPortalForm(
+        form_deal: SettingsDealPortalForm = SettingsDealPortalForm(
+            instance=settings_portal,
+        )
+
+    if 'save-settings-equivalent' in request.POST:
+        form_equ: SettingsEquivalentPortalForm = SettingsEquivalentPortalForm(
+            request.POST or None,
+            instance=settings_portal,
+        )
+        if form_equ.is_valid():
+            fields_form = form_equ.save(commit=False)
+            fields_form.portal = portal
+            fields_form.save()
+    else:
+        form_equ: SettingsEquivalentPortalForm = SettingsEquivalentPortalForm(
             instance=settings_portal,
         )
 
     fields = TemplateDocFields.objects.all()
     context = {
         'fields': fields,
-        'form': form,
+        'form_deal': form_deal,
+        'form_equ': form_equ,
         'member_id': member_id,
     }
     return render(request, template, context)

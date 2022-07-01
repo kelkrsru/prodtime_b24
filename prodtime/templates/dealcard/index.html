@@ -3,21 +3,35 @@
 {% block title %}Карточка сделки{% endblock %}
 {% block content %}
   <div class="container mt-5">
-    <div class="d-flex flex-row-reverse align-items-center">
-      <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
-      <label for="show-all">Показывать все поля</label>
-      <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
-      <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
-      <select class="form-select me-3 w-25" id="select-template" >
-        {% for item in templates %}
-          <option value="{{ item.id }}">{{ item.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="d-flex flex-row-reverse align-items-center mt-3">
-      <button class="btn btn-outline-primary" onclick="HtmlTOExcel('xlsx')">Выгрузить таблицу в Excel</button>
-      <button class="btn btn-outline-primary me-3" onclick="copyProducts()">Копировать товары в каталог и сделку</button>
-      <button class="btn btn-outline-primary me-3" onclick="">Передать суммарный эквивалент в сделку</button>
+    <div class="row">
+      <div class="col-2">
+        <div class="card text-center fw-bold">
+          <div class="card-header bg-primary text-white justify-content-center">
+            <span>Суммарный эквивалент</span>
+          </div>
+          <div class="card-body">
+            <span id="sum-equivalent">{{ sum_equivalent }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-10">
+        <div class="d-flex flex-row-reverse align-items-center">
+          <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
+          <label for="show-all">Показывать все поля</label>
+          <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
+          <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
+          <select class="form-select me-3 w-25" id="select-template" >
+            {% for item in templates %}
+              <option value="{{ item.id }}">{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="d-flex flex-row-reverse align-items-center mt-3">
+          <a href="{% url 'dealcard:export-excel' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
+          <button class="btn btn-outline-primary me-3" onclick="copyProducts()">Копировать товары в каталог и сделку</button>
+          <button class="btn btn-outline-primary me-3" onclick="sendEquivalent()">Передать суммарный эквивалент в сделку</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="container mt-3">
@@ -25,8 +39,8 @@
       <thead>
         <tr>
           <th scope="col" width="5%" id="num">#</th>
-          <th scope="col" width="20%" id="prod">Товар</th>
-          <th scope="col" width="20%" id="print-form">В печатную форму</th>
+          <th scope="col" width="15%" id="prod">Товар</th>
+          <th scope="col" width="15%" id="print-form">В печатную форму</th>
           <th scope="col" width="10%" id="price">Цена, руб.</th>
           <th scope="col" width="5%" id="count">Кол-во</th>
           <th scope="col" width="5%" id="unit">Ед. изм.</th>
@@ -38,6 +52,7 @@
 
           <th scope="col" width="10%" id="sum">Сумма, руб.</th>
           <th scope="col" width="10%" id="count-days">Кол-во раб. дней</th>
+          <th scope="col" width="10%" id="equivalent">Экв-нт</th>
           <th scope="col" width="10%" id="prod-time">Срок производства</th>
           <th scope="col" width="5%" id="finish">Готово</th>
         </tr>
@@ -61,6 +76,8 @@
               <td>{{ product.sum }}</td> {# Общая стоимость с налогом и скидкой #}
               <td data-id="{{ product.id }}"><input class="form-control number-input" type="number" name="count-days-1"
                            value="{{ product.count_days }}"></td> {# Количество рабочих дней #}
+              <td data-id="{{ product.id }}"><input class="form-control equivalent-input" type="number" name="equivalent-1"
+                           value="{{ product.equivalent }}"></td> {# Эквивалент #}
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
               {% if product.finish == True %}
@@ -112,6 +129,17 @@
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'count-days',this);
+    });
+
+    $(".equivalent-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".equivalent-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'equivalent',this);
     });
 
     $(".text-input").focus(function() {
@@ -172,7 +200,7 @@
             data: {templ_id: select_value, member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
-                console.log(response);
+                console.log(response.result);
                 alert('Документ успешно создан в сделке');
             })
             .fail(function () {
@@ -187,19 +215,31 @@
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
-                console.log(response);
+                if(response.result === 'ok'){
+                    alert('Товары успешно созданы в каталоге и обновлены в сделке');
+                }
+                else if(response.result === 'error'){
+                    alert('Нет товаров для копирования, так как они ' +
+                        'идентичны существующим.');
+                }
             })
             .fail(function () {
                 alert('Ошибка копирования товаров');
             });
     }
 
-    function HtmlTOExcel(type, fun, dl) {
-      var elt = document.getElementById('main-table');
-      var wb = XLSX.utils.table_to_book(elt, { sheet: "ProdTime", raw: true });
-      return dl ?
-          XLSX.write(wb, { bookType: type, bookSST: true, type: 'base64' }) :
-          XLSX.writeFile(wb, fun || ('prodtime.' + (type || 'xlsx')));
+    function sendEquivalent() {
+        $.ajax({
+            url: "{% url 'dealcard:send-equivalent' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+        })
+            .done(function (response) {
+                alert("Суммарный эквивалент передан в сделку в размере " + response.result)
+            })
+            .fail(function () {
+                alert('Ошибка передачи эквивалента в сделку');
+            });
     }
   </script>
 

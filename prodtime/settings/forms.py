@@ -20,4 +20,5 @@ class SettingsEquivalentPortalForm(forms.ModelForm):
         model = SettingsPortal
         fields = ('section_list_id', 'default_section_id', 'real_section_code',
                   'copy_section_code', 'equivalent_code',
-                  'sum_equivalent_code',)
+                  'sum_equivalent_code', 'template_id', 'kp_code',
+                  'kp_last_num_code')

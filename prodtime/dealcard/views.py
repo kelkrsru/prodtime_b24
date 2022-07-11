@@ -187,7 +187,7 @@ def index(request):
 @xframe_options_exempt
 @csrf_exempt
 def save(request):
-    """Метод для сохранения изменений в таблице"""
+    """Метод для сохранения изменений в таблице."""
 
     product_id = request.POST.get('id')
     type_field = request.POST.get('type')
@@ -219,7 +219,7 @@ def save(request):
 @xframe_options_exempt
 @csrf_exempt
 def create(request):
-    """Метод создания задачи и сделки"""
+    """Метод создания задачи и сделки."""
 
     product_id = request.POST.get('id')
     member_id = request.POST.get('member_id')
@@ -283,12 +283,36 @@ def create(request):
 @xframe_options_exempt
 @csrf_exempt
 def create_doc(request):
-    """Метод создания документа по выбранному шаблону"""
+    """Метод создания документа по выбранному шаблону."""
 
     member_id = request.POST.get('member_id')
     template_id = request.POST.get('templ_id')
     deal_id = int(request.POST.get('deal_id'))
     portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
+
+    if int(template_id) == settings_portal.template_id:
+        try:
+            deal = DealB24(deal_id, portal)
+            res = deal.get_deal_kp_numbers()
+            kp_code = settings_portal.kp_code
+            kp_last_num_code = settings_portal.kp_last_num_code
+            kp_numbers_deal = res[kp_code]
+            kp_numbers = kp_numbers_deal if kp_numbers_deal else []
+            last_kp_number = res[kp_last_num_code]
+            next_kp_number = int(last_kp_number) + 1 if last_kp_number else 1
+            kp_number = f'{timezone.now().year}-{deal_id}.{next_kp_number}'
+            kp_numbers.append(kp_number)
+            deal.send_kp_numbers(kp_code, kp_numbers, kp_last_num_code,
+                                 next_kp_number)
+        except RuntimeError as ex:
+            return render(request, 'error.html', {
+                'error_name': ex.args[0],
+                'error_description': ex.args[1]
+            })
+    else:
+        kp_number = ''
 
     products = ProdTime.objects.filter(portal=portal, deal_id=deal_id).values()
     fields = TemplateDocFields.objects.values()
@@ -337,6 +361,7 @@ def create_doc(request):
     values['ptProductDiscountTotal'] = 'Table.Item.ptProductDiscountTotal'
     values['TableIndex'] = 'Table.INDEX'
     values['Table'] = prods_for_template
+    values['ptKpNumber'] = kp_number
 
     try:
         bx24_template_doc = TemplateDocB24(portal)
@@ -436,6 +461,15 @@ def export_excel(request):
 
     products = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
 
+    try:
+        deal = DealB24(deal_id, portal)
+        deal.get_deal_company()
+        company = CompanyB24(portal, deal.deal_company)
+        company.get_name()
+        company_name = company.name
+    except RuntimeError:
+        company_name = 'Не удалось получить наименование компании'
+
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.'
                      'spreadsheetml.sheet',
@@ -448,21 +482,17 @@ def export_excel(request):
 
     columns = [
         'Товар',
-        'В печатную форму',
-        'Цена, руб.',
         'Кол-во',
-        'Ед. изм.',
-        'Скидка, %',
-        'Сумма скидки, руб.',
-        'Налог, %',
-        'Сумма налога, руб.',
-        'Сумма, руб.',
         'Кол-во раб. дней',
-        'Экв-нт',
-        'Суммарный экв-нт',
         'Срок производства'
     ]
-    row_num = 1
+
+    worksheet.merge_cells('A1:D1')
+    worksheet.merge_cells('A2:D2')
+    worksheet.cell(1, 1).value = f'ИД сделки: {deal_id}'
+    worksheet.cell(2, 1).value = f'Компания сделки: {company_name}'
+
+    row_num = 4
 
     for col_num, column_title in enumerate(columns, 1):
         cell = worksheet.cell(row=row_num, column=col_num)
@@ -473,18 +503,8 @@ def export_excel(request):
 
         row = [
             product.name,
-            product.name_for_print,
-            product.price_netto,
             product.quantity,
-            product.measure_name,
-            product.bonus,
-            product.bonus_sum,
-            product.tax,
-            product.tax_sum,
-            product.sum,
             product.count_days,
-            product.equivalent,
-            product.equivalent_count,
             product.prod_time,
         ]
 
@@ -577,6 +597,14 @@ class DealB24(ObjB24):
         result = self.bx24.call(method_rest, params)
         self.deal_company = self._check_error(result)['COMPANY_ID']
 
+    def get_deal_kp_numbers(self):
+        """Получить нумерацию по КП сделки."""
+
+        method_rest = 'crm.deal.get'
+        params = {'id': self.deal_id}
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
     def create_deal(self, title, category_id, stage_id, responsible_id,
                     rel_deal_id, rel_deal_code, company_id):
         """Создать сделку в Битрикс24"""
@@ -613,6 +641,21 @@ class DealB24(ObjB24):
             'id': self.deal_id,
             'fields': {
                 code_equivalent: value_equivalent
+            }
+        }
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
+    def send_kp_numbers(self, kp_code, kp_value, kp_last_num_code,
+                        kp_last_num_value):
+        """Обновить номера КП в сделке."""
+
+        method_rest = 'crm.deal.update'
+        params = {
+            'id': self.deal_id,
+            'fields': {
+                kp_code: kp_value,
+                kp_last_num_code: kp_last_num_value
             }
         }
         result = self.bx24.call(method_rest, params)
@@ -661,16 +704,22 @@ class TemplateDocB24(ObjB24):
 
 
 class CompanyB24(ObjB24):
-    """Класс Компания Битрикс24"""
+    """Класс Компания Битрикс24."""
+    def __init__(self, portal, company_id=None):
+        super(CompanyB24, self).__init__(portal)
+        self.id = company_id
+        self.name = None
 
-    def get_company_name_by_id(self, company_id):
-        """Получить наименование компании по ее ID в Битрикс24"""
-
-        pass
+    def get_name(self):
+        """Получить тип компании в Битрикс24."""
+        method_rest = 'crm.company.get'
+        params = {'id': self.id}
+        result = self.bx24.call(method_rest, params)
+        self.name = (self._check_error(result))['TITLE']
 
 
 class TaskB24(ObjB24):
-    """Класс Задача Битрикс24"""
+    """Класс Задача Битрикс24."""
 
     def create_task(self, title, responsible_id, deal_id, deadline):
         """Создать задачу в Битрикс24"""

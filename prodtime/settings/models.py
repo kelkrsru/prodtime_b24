@@ -94,6 +94,25 @@ class SettingsPortal(models.Model):
         default='UF_CRM_0000000000',
         max_length=30,
     )
+    template_id = models.PositiveIntegerField(
+        verbose_name='ID шаблона КП',
+        help_text='ID шаблона коммерческого предложения',
+        default=0,
+    )
+    kp_code = models.CharField(
+        verbose_name='Код поля номеров КП',
+        help_text='Код поля в сделке, куда записывается номера '
+                  'сформированных коммерческих предложений',
+        default='UF_CRM_0000000000',
+        max_length=30,
+    )
+    kp_last_num_code = models.CharField(
+        verbose_name='Код поля последнего номера КП',
+        help_text='Код поля в сделке, куда записывается последний номер '
+                  'сквозной нумерации коммерческих предложений',
+        default='UF_CRM_0000000000',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

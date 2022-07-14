@@ -74,6 +74,9 @@ DATABASES = {
         'USER': 'userprilozhenie',
         'PASSWORD': 'kyA5f!wv4Y3Me5J',
         'HOST': '127.0.0.1',
+        'OPTIONS': {
+                    'sql_mode': 'traditional',
+                },
     }
 }
 

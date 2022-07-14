@@ -27,11 +27,11 @@ class ProdTime(CreatedModel):
     )
     name = models.CharField(
         verbose_name='Наименование',
-        max_length=255,
+        max_length=1024,
     )
     name_for_print = models.CharField(
         verbose_name='Наименование в печатную форму',
-        max_length=255,
+        max_length=1024,
     )
     price = models.DecimalField(
         verbose_name='Цена со скидкой и налогом',

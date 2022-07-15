@@ -331,6 +331,10 @@ def create_doc(request):
         prods_values['ptProductDiscountTotal'] = str(
             round(product['bonus_sum'] * product['quantity'], 2)
         )  # code_db == None
+        prods_values['ptProductDiscountTotalBrutto'] = str(
+            round(product['bonus'] * product['price_brutto']
+                  * product['quantity'] / 100, 2)
+        )  # code_db == None
         count += 1
         for field in fields:
             if field['code_db'] == 'None':
@@ -359,6 +363,8 @@ def create_doc(request):
     values['ptProductPriceBruttoSum'] = 'Table.Item.ptProductPriceBruttoSum'
     values['ptProductPriceNettoSum'] = 'Table.Item.ptProductPriceNettoSum'
     values['ptProductDiscountTotal'] = 'Table.Item.ptProductDiscountTotal'
+    values['ptProductDiscountTotalBrutto'] = (
+        'Table.Item.ptProductDiscountTotalBrutto')
     values['TableIndex'] = 'Table.INDEX'
     values['Table'] = prods_for_template
     values['ptKpNumber'] = kp_number

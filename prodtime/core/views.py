@@ -49,4 +49,13 @@ def install(request):
             'error_description': result['error_description'],
         })
 
+    params['PLACEMENT'] = 'CRM_QUOTE_DETAIL_TAB'
+    params['HANDLER'] = 'https://prilozhenie.plazma-t.ru/quotecard/'
+    result = bx24.call('placement.bind', params)
+    if 'error' in result:
+        return render(request, 'error.html', {
+            'error_name': result['error'],
+            'error_description': result['error_description'],
+        })
+
     return render(request, 'core/install.html')

@@ -12,10 +12,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 from openpyxl import Workbook
+from openpyxl.styles import Alignment
 
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal
-from .models import ProdTime
+from .models import ProdTimeDeal
 
 from pybitrix24 import Bitrix24
 
@@ -86,7 +87,7 @@ def index(request):
         product_value['sum'] = round(product_value['quantity']
                                      * product_value['price_acc'], 2)
         try:
-            prodtime: ProdTime = ProdTime.objects.get(
+            prodtime: ProdTimeDeal = ProdTimeDeal.objects.get(
                 product_id_b24=product_value['product_id_b24']
             )
             product_value['name_for_print'] = prodtime.name_for_print
@@ -113,7 +114,7 @@ def index(request):
             prodtime.sum = product_value['sum']
             prodtime.save()
         except ObjectDoesNotExist:
-            prodtime: ProdTime = ProdTime.objects.create(
+            prodtime: ProdTimeDeal = ProdTimeDeal.objects.create(
                 product_id_b24=product_value['product_id_b24'],
                 name=product_value['name'],
                 name_for_print=product_value['name_for_print'],
@@ -163,13 +164,14 @@ def index(request):
             prodtime.save()
         products.append(product_value)
 
-    products_in_db = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
+    products_in_db = ProdTimeDeal.objects.filter(portal=portal,
+                                                 deal_id=deal_id)
     for product in products_in_db:
         if not next((x for x in products if
                      x['product_id_b24'] == product.product_id_b24), None):
             product.delete()
 
-    sum_equivalent = ProdTime.objects.filter(
+    sum_equivalent = ProdTimeDeal.objects.filter(
         portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
     sum_equivalent = sum_equivalent['equivalent_count__sum']
 
@@ -193,7 +195,7 @@ def save(request):
     type_field = request.POST.get('type')
     value = request.POST.get('value')
 
-    prodtime: ProdTime = get_object_or_404(ProdTime, pk=product_id)
+    prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal, pk=product_id)
     if type_field == 'name-for-print':
         prodtime.name_for_print = value
     if type_field == 'prod-time':
@@ -221,11 +223,10 @@ def save(request):
 def create(request):
     """Метод создания задачи и сделки."""
 
-    product_id = request.POST.get('id')
+    products_id = request.POST.getlist('products_id[]')
     member_id = request.POST.get('member_id')
+    deal_id = request.POST.get('deal_id')
     portal: Portals = _create_portal(member_id)
-
-    prodtime: ProdTime = get_object_or_404(ProdTime, pk=product_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -235,44 +236,66 @@ def create(request):
             "info": ('Создание сделки отключено в настройках. Сделка и задача'
                      ' не созданы.')
         })
+
+    i = 0
+    while i < len(products_id):
+        prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal,
+                                                   pk=products_id[i])
+        if prodtime.finish:
+            del products_id[i]
+        else:
+            i += 1
+    if not products_id:
+        return JsonResponse({
+            'result': 'noproducts',
+            "info": ('Вы не выбрали товары.')
+        })
+
     try:
-        bx24_deal = DealB24(prodtime.deal_id, portal)
+        bx24_deal = DealB24(deal_id, portal)
         bx24_deal.get_deal_responsible()
         bx24_deal.get_deal_company()
         title_new_deal = (settings_portal.name_deal
-                          .replace('{ProductName}', prodtime.name)
-                          .replace('{DealId}', str(prodtime.deal_id)))
+                          .replace('{ProductName}', '')
+                          .replace('{DealId}', str(deal_id)))
         new_deal_id = bx24_deal.create_deal(
             title_new_deal,
             settings_portal.category_id,
             settings_portal.stage_code,
             bx24_deal.deal_responsible,
-            prodtime.deal_id,
+            deal_id,
             settings_portal.real_deal_code,
             bx24_deal.deal_company
         )
-        prod_row = bx24_deal.get_deal_product_by_id(prodtime.product_id_b24)
-        prod_row['ownerId'] = new_deal_id
-        del prod_row['id']
-        bx24_deal.add_deal_product(prod_row)
-        if not settings_portal.create_task:
-            return JsonResponse({
-                'result': 'notask',
-                "info": ('Создание задачи отключено в настройках. Сделка '
-                         'создана успешно.')
-            })
-        bx24_task = TaskB24(portal)
-        title_task = (settings_portal.name_task
-                      .replace('{ProductName}', prodtime.name)
-                      .replace('{DealId}', str(prodtime.deal_id)))
-        deadline = settings_portal.task_deadline
-        bx24_task.create_task(title_task, bx24_deal.deal_responsible,
-                              new_deal_id, deadline)
     except RuntimeError as ex:
         return render(request, 'error.html', {
             'error_name': ex.args[0],
             'error_description': ex.args[1]
         })
+
+    for product_id in products_id:
+        prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal, pk=product_id)
+        prodtime.finish = True
+        prodtime.save()
+
+        prod_row = bx24_deal.get_deal_product_by_id(prodtime.product_id_b24)
+        prod_row['ownerId'] = new_deal_id
+        del prod_row['id']
+        bx24_deal.add_deal_product(prod_row)
+
+    if not settings_portal.create_task:
+        return JsonResponse({
+            'result': 'notask',
+            "info": ('Создание задачи отключено в настройках. Сделка '
+                     'создана успешно.')
+        })
+    bx24_task = TaskB24(portal)
+    title_task = (settings_portal.name_task
+                  .replace('{ProductName}', '')
+                  .replace('{DealId}', str(deal_id)))
+    deadline = settings_portal.task_deadline
+    bx24_task.create_task(title_task, bx24_deal.deal_responsible,
+                          new_deal_id, deadline)
 
     return JsonResponse({
         'result': 'dealandtask',
@@ -314,7 +337,8 @@ def create_doc(request):
     else:
         kp_number = ''
 
-    products = ProdTime.objects.filter(portal=portal, deal_id=deal_id).values()
+    products = ProdTimeDeal.objects.filter(portal=portal,
+                                           deal_id=deal_id).values()
     fields = TemplateDocFields.objects.values()
     fields = list(fields)
     prods_for_template = list()
@@ -347,9 +371,12 @@ def create_doc(request):
                     and not product[field['code_db']]):
                 prods_values[field['code'].strip('{}')] = 'Не указан'
                 continue
-            if (field['code_db'] == 'count_days'
-                    and not product[field['code_db']]):
-                prods_values[field['code'].strip('{}')] = '-'
+            if field['code_db'] == 'count_days':
+                if not product[field['code_db']]:
+                    prods_values[field['code'].strip('{}')] = '-'
+                else:
+                    prods_values[field['code'].strip('{}')] = int(
+                        round(product['count_days'], 0))
                 continue
             prods_values[field['code'].strip('{}')] = str(
                 product[field['code_db']])
@@ -368,6 +395,8 @@ def create_doc(request):
     values['TableIndex'] = 'Table.INDEX'
     values['Table'] = prods_for_template
     values['ptKpNumber'] = kp_number
+    if int(template_id) == settings_portal.template_id:
+        values['DocumentNumber'] = kp_number
 
     try:
         bx24_template_doc = TemplateDocB24(portal)
@@ -393,7 +422,7 @@ def copy_products(request):
                                                         portal=portal)
 
     result_copy = 'error'
-    products = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
+    products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
 
     for product in products:
         if product.name == product.name_for_print:
@@ -447,7 +476,7 @@ def send_equivalent(request):
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
-    sum_equivalent = ProdTime.objects.filter(
+    sum_equivalent = ProdTimeDeal.objects.filter(
         portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
     sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
     deal = DealB24(deal_id, portal)
@@ -465,7 +494,7 @@ def export_excel(request):
     deal_id = int(request.GET.get('deal_id'))
     portal: Portals = _create_portal(member_id)
 
-    products = ProdTime.objects.filter(portal=portal, deal_id=deal_id)
+    products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
 
     try:
         deal = DealB24(deal_id, portal)
@@ -493,12 +522,19 @@ def export_excel(request):
         'Срок производства'
     ]
 
-    worksheet.merge_cells('A1:D1')
-    worksheet.merge_cells('A2:D2')
-    worksheet.cell(1, 1).value = f'ИД сделки: {deal_id}'
-    worksheet.cell(2, 1).value = f'Компания сделки: {company_name}'
+    worksheet.merge_cells('B1:D1')
+    worksheet.merge_cells('B2:D2')
+    worksheet.cell(1, 1).value = 'ИД сделки:'
+    worksheet.cell(1, 2).value = deal_id
+    worksheet.cell(1, 2).alignment = Alignment(horizontal='left')
+    worksheet.cell(2, 1).value = 'Компания сделки:'
+    worksheet.cell(2, 2).value = company_name
 
     row_num = 4
+    worksheet.column_dimensions['A'].width = 70
+    worksheet.column_dimensions['B'].width = 10
+    worksheet.column_dimensions['C'].width = 17
+    worksheet.column_dimensions['D'].width = 20
 
     for col_num, column_title in enumerate(columns, 1):
         cell = worksheet.cell(row=row_num, column=col_num)
@@ -515,7 +551,10 @@ def export_excel(request):
         ]
 
         for col_num, cell_value in enumerate(row, 1):
+            worksheet.row_dimensions[row_num].height = 30
             cell = worksheet.cell(row=row_num, column=col_num)
+            alignment = Alignment(vertical='center', wrap_text=True)
+            cell.alignment = alignment
             cell.value = cell_value
 
     workbook.save(response)
@@ -711,6 +750,7 @@ class TemplateDocB24(ObjB24):
 
 class CompanyB24(ObjB24):
     """Класс Компания Битрикс24."""
+
     def __init__(self, portal, company_id=None):
         super(CompanyB24, self).__init__(portal)
         self.id = company_id

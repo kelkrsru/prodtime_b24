@@ -1,8 +1,8 @@
 from django.contrib import admin
-from .models import ProdTime
+from .models import ProdTimeDeal
 
 
-class ProdTimeAdmin(admin.ModelAdmin):
+class ProdTimeDealAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'product_id_b24',
@@ -11,4 +11,4 @@ class ProdTimeAdmin(admin.ModelAdmin):
     )
 
 
-admin.site.register(ProdTime, ProdTimeAdmin)
+admin.site.register(ProdTimeDeal, ProdTimeDealAdmin)

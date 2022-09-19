@@ -265,7 +265,8 @@ def create(request):
             bx24_deal.deal_responsible,
             deal_id,
             settings_portal.real_deal_code,
-            bx24_deal.deal_company
+            bx24_deal.deal_company,
+            bx24_deal.deal_contact,
         )
     except RuntimeError as ex:
         return render(request, 'error.html', {
@@ -609,6 +610,7 @@ class DealB24(ObjB24):
         self.deal_products = None
         self.deal_responsible = None
         self.deal_company = None
+        self.deal_contact = None
 
     def get_deal_products(self):
         """Получить все продукты сделки"""
@@ -641,6 +643,7 @@ class DealB24(ObjB24):
         params = {'id': self.deal_id}
         result = self.bx24.call(method_rest, params)
         self.deal_company = self._check_error(result)['COMPANY_ID']
+        self.deal_contact = self._check_error(result)['CONTACT_ID']
 
     def get_deal_kp_numbers(self):
         """Получить нумерацию по КП сделки."""
@@ -651,7 +654,7 @@ class DealB24(ObjB24):
         return self._check_error(result)
 
     def create_deal(self, title, category_id, stage_id, responsible_id,
-                    rel_deal_id, rel_deal_code, company_id):
+                    rel_deal_id, rel_deal_code, company_id, contact_id):
         """Создать сделку в Битрикс24"""
 
         method_rest = 'crm.deal.add'
@@ -663,6 +666,7 @@ class DealB24(ObjB24):
                 'ASSIGNED_BY_ID': responsible_id,
                 rel_deal_code: rel_deal_id,
                 'COMPANY_ID': company_id,
+                'CONTACT_ID': contact_id,
             }
         }
         result = self.bx24.call(method_rest, params)

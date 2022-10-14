@@ -38,9 +38,9 @@
     <table class="table table-striped align-baseline" id="main-table">
       <thead>
         <tr>
-          <th scope="col" width="5%" id="num">#</th>
+          <th scope="col" width="3%" id="num">#</th>
           <th scope="col" width="15%" id="prod">Товар</th>
-          <th scope="col" width="15%" id="print-form">В печатную форму</th>
+          <th scope="col" width="12%" id="print-form">В печатную форму</th>
           <th scope="col" width="10%" id="price">Цена, руб.</th>
           <th scope="col" width="5%" id="count">Кол-во</th>
           <th scope="col" width="5%" id="unit">Ед. изм.</th>
@@ -54,7 +54,8 @@
           <th scope="col" width="10%" id="count-days">Кол-во раб. дней</th>
           <th scope="col" width="10%" id="equivalent">Экв-нт за 1 ед.</th>
           <th scope="col" width="10%" id="prod-time">Срок производства</th>
-          <th scope="col" width="5%" id="finish">Готово</th>
+          <th scope="col" width="5%" id="finish">Выпуск</th>
+          <th scope="col" width="5%" id="made">Готово</th>
         </tr>
       </thead>
       <tbody>
@@ -81,9 +82,14 @@
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
               {% if product.finish == True %}
-                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox" checked></td> {# Готовность изделия #}
+                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox" checked></td> {# Выпуск изделия #}
               {% else %}
-                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox"></td> {# Готовность изделия #}
+                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox"></td> {# Выпуск изделия #}
+              {% endif %}
+              {% if product.made == True %}
+                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input made-check-input" type="checkbox" checked></td> {# Готовность изделия #}
+              {% else %}
+                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input made-check-input" type="checkbox"></td> {# Готовность изделия #}
               {% endif %}
             </tr>
           {% endfor %}
@@ -109,6 +115,16 @@
         const td = $(this).parent("td");
         if (this.checked === false){
             sendToServer(td.data("id"),'false','finish');
+        }
+    });
+
+    $(".made-check-input").change(function() {
+        const td = $(this).parent("td");
+        if (this.checked === false){
+            sendToServer(td.data("id"),'false','made');
+        }
+        if (this.checked === true){
+            sendToServer(td.data("id"),'true','made');
         }
     });
 

@@ -100,6 +100,7 @@ def index(request):
             product_value['count_days'] = str(prodtime.count_days).replace(',',
                                                                            '.')
             product_value['finish'] = prodtime.finish
+            product_value['made'] = prodtime.made
             product_value['id'] = prodtime.pk
             prodtime.name = product_value['name']
             prodtime.price = product_value['price']

@@ -229,6 +229,10 @@ class ProdTime(CreatedModel):
         default=False,
     )
     finish = models.BooleanField(
+        verbose_name='Выпуск изделия',
+        default=False,
+    )
+    made = models.BooleanField(
         verbose_name='Готовность изделия',
         default=False,
     )

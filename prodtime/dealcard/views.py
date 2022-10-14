@@ -95,6 +95,7 @@ def index(request):
             product_value['count_days'] = str(prodtime.count_days).replace(',',
                                                                            '.')
             product_value['finish'] = prodtime.finish
+            product_value['made'] = prodtime.made
             product_value['id'] = prodtime.pk
             prodtime.name = product_value['name']
             prodtime.price = product_value['price']
@@ -213,6 +214,12 @@ def save(request):
             prodtime.finish = True
         if value == 'false':
             prodtime.finish = False
+    prodtime.save()
+    if type_field == 'made':
+        if value == 'true':
+            prodtime.made = True
+        if value == 'false':
+            prodtime.made = False
     prodtime.save()
 
     return JsonResponse({"success": "Updated"})

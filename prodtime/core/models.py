@@ -236,6 +236,10 @@ class ProdTime(CreatedModel):
         verbose_name='Готовность изделия',
         default=False,
     )
+    sort = models.PositiveIntegerField(
+        verbose_name='Сортировка',
+        default=0
+    )
     portal = models.ForeignKey(
         Portals,
         verbose_name='Портал',

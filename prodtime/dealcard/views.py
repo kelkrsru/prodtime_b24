@@ -80,6 +80,7 @@ def index(request):
             'bonus_sum': round(decimal.Decimal(product['DISCOUNT_SUM']), 2),
             'tax': round(decimal.Decimal(product['TAX_RATE']), 2),
             'tax_included': True if product['TAX_INCLUDED'] == 'Y' else False,
+            'sort': int(product['SORT']),
         }
         product_value['tax_sum'] = round(product_value['quantity'] *
                                          product_value['price_exs'] *
@@ -113,6 +114,7 @@ def index(request):
             prodtime.tax_included = product_value['tax_included']
             prodtime.tax_sum = product_value['tax_sum']
             prodtime.sum = product_value['sum']
+            prodtime.sort = product_value['sort']
             prodtime.save()
         except ObjectDoesNotExist:
             prodtime: ProdTimeDeal = ProdTimeDeal.objects.create(
@@ -134,6 +136,7 @@ def index(request):
                 tax_included=product_value['tax_included'],
                 tax_sum=product_value['tax_sum'],
                 sum=product_value['sum'],
+                sort=product_value['sort'],
                 deal_id=deal_id,
                 portal=portal,
             )
@@ -175,6 +178,8 @@ def index(request):
     sum_equivalent = ProdTimeDeal.objects.filter(
         portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
     sum_equivalent = sum_equivalent['equivalent_count__sum']
+
+    products = sorted(products, key=lambda prod: prod.get('sort'))
 
     context = {
         'title': title,
@@ -503,6 +508,7 @@ def export_excel(request):
     portal: Portals = _create_portal(member_id)
 
     products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
+    products = sorted(products, key=lambda prod: prod.sort)
 
     try:
         deal = DealB24(deal_id, portal)

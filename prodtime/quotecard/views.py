@@ -85,6 +85,7 @@ def index(request):
             'bonus_sum': round(decimal.Decimal(product['DISCOUNT_SUM']), 2),
             'tax': round(decimal.Decimal(product['TAX_RATE']), 2),
             'tax_included': True if product['TAX_INCLUDED'] == 'Y' else False,
+            'sort': int(product['SORT']),
         }
         product_value['tax_sum'] = round(product_value['quantity'] *
                                          product_value['price_exs'] *
@@ -118,6 +119,7 @@ def index(request):
             prodtime.tax_included = product_value['tax_included']
             prodtime.tax_sum = product_value['tax_sum']
             prodtime.sum = product_value['sum']
+            prodtime.sort = product_value['sort']
             prodtime.save()
         except ObjectDoesNotExist:
             prodtime: ProdTimeQuote = ProdTimeQuote.objects.create(
@@ -139,6 +141,7 @@ def index(request):
                 tax_included=product_value['tax_included'],
                 tax_sum=product_value['tax_sum'],
                 sum=product_value['sum'],
+                sort=product_value['sort'],
                 quote_id=quote_id,
                 portal=portal,
             )
@@ -178,6 +181,8 @@ def index(request):
     sum_equivalent = ProdTimeQuote.objects.filter(
         portal=portal, quote_id=quote_id).aggregate(Sum('equivalent_count'))
     sum_equivalent = sum_equivalent['equivalent_count__sum']
+
+    products = sorted(products, key=lambda prod: prod.get('sort'))
 
     context = {
         'title': title,
@@ -443,6 +448,7 @@ def send_products(request):
                 tax_included=prodtime_in_quote.tax_included,
                 tax_sum=prodtime_in_quote.tax_sum,
                 sum=prodtime_in_quote.sum,
+                sort=prodtime_in_quote.sort,
                 deal_id=deal.id,
                 equivalent=prodtime_in_quote.equivalent,
                 equivalent_count=prodtime_in_quote.equivalent_count,
@@ -474,6 +480,7 @@ def export_excel(request):
     portal: Portals = _create_portal(member_id)
 
     products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id)
+    products = sorted(products, key=lambda prod: prod.sort)
 
     try:
         quote = QuoteB24(portal, quote_id)

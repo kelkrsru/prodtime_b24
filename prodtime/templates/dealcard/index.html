@@ -3,33 +3,42 @@
 {% block title %}Карточка сделки{% endblock %}
 {% block content %}
   <div class="container mt-5">
-    <div class="row">
-      <div class="col-2">
-        <div class="card text-center fw-bold">
-          <div class="card-header bg-primary text-white justify-content-center">
-            <span>Суммарный эквивалент</span>
+    <div class="card bg-light">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-2">
+            <div class="card text-center fw-bold">
+              <div class="card-header bg-primary text-white justify-content-center">
+                <span>Суммарный эквивалент</span>
+              </div>
+              <div class="card-body">
+                <span id="sum-equivalent">{{ sum_equivalent }}</span>
+              </div>
+            </div>
           </div>
-          <div class="card-body">
-            <span id="sum-equivalent">{{ sum_equivalent }}</span>
+          <div class="col-10">
+            <div class="d-flex flex-row-reverse align-items-center">
+              <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
+              <label for="show-all">Показывать все поля</label>
+              <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
+              <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
+              <select class="form-select me-3 w-25" id="select-template" >
+                {% for item in templates %}
+                  <option value="{{ item.id }}">{{ item.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="d-flex flex-row-reverse align-items-center mt-3">
+              <a href="{% url 'dealcard:export-excel' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
+              <button class="btn btn-outline-primary me-3" onclick="copyProducts()">Копировать товары в каталог и сделку</button>
+              <button class="btn btn-outline-primary me-3" onclick="sendEquivalent()">Передать суммарный эквивалент в сделку</button>
+            </div>
+            <div class="row d-flex flex-row-reverse align-items-center mt-3">
+              <button class="col btn btn-outline-primary" onclick="WriteFactoryNumbers()">Установить заводские номера</button>
+              <input class="col form-control me-3" type="text" id="general-number" value="{{ deal.general_number }}">
+              <label class="col text-end" for="general-number">Основная часть заводского номера:</label>
+            </div>
           </div>
-        </div>
-      </div>
-      <div class="col-10">
-        <div class="d-flex flex-row-reverse align-items-center">
-          <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
-          <label for="show-all">Показывать все поля</label>
-          <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
-          <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
-          <select class="form-select me-3 w-25" id="select-template" >
-            {% for item in templates %}
-              <option value="{{ item.id }}">{{ item.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="d-flex flex-row-reverse align-items-center mt-3">
-          <a href="{% url 'dealcard:export-excel' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
-          <button class="btn btn-outline-primary me-3" onclick="copyProducts()">Копировать товары в каталог и сделку</button>
-          <button class="btn btn-outline-primary me-3" onclick="sendEquivalent()">Передать суммарный эквивалент в сделку</button>
         </div>
       </div>
     </div>
@@ -41,7 +50,7 @@
           <th scope="col" width="3%" id="num">#</th>
           <th scope="col" width="15%" id="prod">Товар</th>
           <th scope="col" width="12%" id="print-form">В печатную форму</th>
-          <th scope="col" width="10%" id="price">Цена, руб.</th>
+          <th scope="col" width="8%" id="price">Цена, руб.</th>
           <th scope="col" width="5%" id="count">Кол-во</th>
           <th scope="col" width="5%" id="unit">Ед. изм.</th>
 
@@ -50,12 +59,14 @@
           <th scope="col" id="tax" class="td-hidden">Налог, %</th>
           <th scope="col" id="tax-sum" class="td-hidden">Сумма налога, руб.</th>
 
-          <th scope="col" width="10%" id="sum">Сумма, руб.</th>
-          <th scope="col" width="10%" id="count-days">Кол-во раб. дней</th>
-          <th scope="col" width="10%" id="equivalent">Экв-нт за 1 ед.</th>
+          <th scope="col" width="9%" id="sum">Сумма, руб.</th>
+          <th scope="col" width="8%" id="count-days">Кол-во раб. дней</th>
+          <th scope="col" width="8%" id="equivalent">Экв-нт за 1 ед.</th>
           <th scope="col" width="10%" id="prod-time">Срок производства</th>
-          <th scope="col" width="5%" id="finish">Выпуск</th>
-          <th scope="col" width="5%" id="made">Готово</th>
+          <th scope="col" width="8%" id="factory-number">Зав. номер</th>
+          <th scope="col" width="3%" id="edit-number">Изменить номер</th>
+          <th scope="col" width="3%" id="finish">Выпуск</th>
+          <th scope="col" width="3%" id="made">Готово</th>
         </tr>
       </thead>
       <tbody>
@@ -81,6 +92,15 @@
                            value="{{ product.equivalent }}"></td> {# Эквивалент #}
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
+              {% if product.factory_number %}
+                <td data-id="{{ product.id }}"><input type="text" class="form-control"
+                         name="factory-number-1" value="{{ product.factory_number }}" readonly></td> {# Заводской номер #}
+                <td data-id="{{ product.id }}"><button class="btn btn-outline-info" onclick="editFactoryNumber()" title="Изменить заводской номер">🔢</button></td> {# Изменить заводской номер #}
+              {% else %}
+                <td data-id="{{ product.id }}"><input type="text" class="form-control"
+                         name="factory-number-1" value="Не задан" readonly></td> {# Заводской номер #}
+                <td data-id="{{ product.id }}"><button class="btn btn-outline-info" onclick="editFactoryNumber()" disabled>🔢</button></td> {# Изменить заводской номер #}
+              {% endif %}
               {% if product.finish == True %}
                 <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox" checked></td> {# Выпуск изделия #}
               {% else %}
@@ -172,6 +192,16 @@
         sendToServer(td.data("id"),value,'name-for-print',this);
     });
 
+    $("#general-number").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $("#general-number").blur(function() {
+        const value = $(this).val();
+        sendToServer({{ deal.pk }},value,'general-number',this);
+    });
+
     function sendToServer(id,value,type,control) {
         $.ajax({
             url: "{% url 'dealcard:save' %}",
@@ -229,10 +259,24 @@
             data: {products_id: products_id, member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
-                alert(response.info);
+                alert(response.result + response.info);
             })
             .fail(function () {
                 alert('Ошибка при создании сделки на отгрузку');
+            });
+    }
+
+    function WriteFactoryNumbers() {
+        $.ajax({
+            url: "{% url 'dealcard:write-factory-number' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+        })
+            .done(function (response) {
+                alert(response.info);
+            })
+            .fail(function () {
+                alert('Ошибка при создании заводских номеров');
             });
     }
 

@@ -4,7 +4,7 @@ from .models import SettingsPortal
 
 
 class SettingsDealPortalForm(forms.ModelForm):
-    """Форма Настройки портала"""
+    """Форма Настройки портала для создания сделки и задачи."""
 
     class Meta:
         model = SettingsPortal
@@ -14,7 +14,7 @@ class SettingsDealPortalForm(forms.ModelForm):
 
 
 class SettingsEquivalentPortalForm(forms.ModelForm):
-    """Форма Настройки портала"""
+    """Форма Настройки портала для нумерации КП и эквивалента."""
 
     class Meta:
         model = SettingsPortal
@@ -22,3 +22,12 @@ class SettingsEquivalentPortalForm(forms.ModelForm):
                   'copy_section_code', 'equivalent_code',
                   'sum_equivalent_code', 'template_id', 'kp_code',
                   'kp_last_num_code')
+
+
+class SettingsFactoryNumbersPortalForm(forms.ModelForm):
+    """Форма Настройки портала копирования в каталог и заводских номеров."""
+
+    class Meta:
+        model = SettingsPortal
+        fields = ('smart_factory_number_id', 'factory_number_code',
+                  'responsible_id_copy_catalog', 'price_with_tax_code')

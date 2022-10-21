@@ -33,7 +33,8 @@ def index(request):
 
     if request.method == 'POST':
         member_id: str = request.POST['member_id']
-        quote_id: int = int(json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
+        quote_id: int = int(
+            json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
     elif request.method == 'GET':
         member_id: str = request.GET.get('member_id')
         quote_id: int = int(request.GET.get('quote_id'))
@@ -102,6 +103,9 @@ def index(request):
                                                                            '.')
             product_value['finish'] = prodtime.finish
             product_value['made'] = prodtime.made
+            product_value['smart_id_factory_number'] = (
+                prodtime.smart_id_factory_number)
+            product_value['factory_number'] = prodtime.factory_number
             product_value['id'] = prodtime.pk
             prodtime.name = product_value['name']
             prodtime.price = product_value['price']
@@ -172,7 +176,8 @@ def index(request):
             prodtime.save()
         products.append(product_value)
 
-    products_in_db = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id)
+    products_in_db = ProdTimeQuote.objects.filter(portal=portal,
+                                                  quote_id=quote_id)
     for product in products_in_db:
         if not next((x for x in products if
                      x['product_id_b24'] == product.product_id_b24), None):
@@ -256,7 +261,8 @@ def create_doc(request):
     else:
         kp_number = ''
 
-    products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id).values()
+    products = ProdTimeQuote.objects.filter(portal=portal,
+                                            quote_id=quote_id).values()
     fields = TemplateDocFields.objects.values()
     fields = list(fields)
     prods_for_template = list()
@@ -293,7 +299,8 @@ def create_doc(request):
                 if not product[field['code_db']]:
                     prods_values[field['code'].strip('{}')] = '-'
                 else:
-                    prods_values[field['code'].strip('{}')] = int(round(product['count_days'], 0))
+                    prods_values[field['code'].strip('{}')] = int(
+                        round(product['count_days'], 0))
                 continue
             prods_values[field['code'].strip('{}')] = str(
                 product[field['code_db']])
@@ -317,7 +324,8 @@ def create_doc(request):
 
     try:
         bx24_template_doc = TemplateDocB24(portal, 0)
-        result = bx24_template_doc.create_docs(template_id, quote_id, values, parent='quote')
+        result = bx24_template_doc.create_docs(template_id, quote_id, values,
+                                               parent='quote')
     except RuntimeError as ex:
         return render(request, 'error.html', {
             'error_name': ex.args[0],
@@ -358,11 +366,17 @@ def copy_products(request):
                     element_list[0].get(
                         settings_portal.copy_section_code).values())[0]
             if product.is_change_equivalent:
-                product_in_catalog.properties[settings_portal.equivalent_code] = {}
+                product_in_catalog.properties[
+                    settings_portal.equivalent_code] = {}
                 product_in_catalog.properties[settings_portal.equivalent_code][
                     'value'] = str(product.equivalent)
             product_in_catalog.properties['NAME'] = product.name_for_print
             product_in_catalog.properties['SECTION_ID'] = new_section_id
+            product_in_catalog.properties['CREATED_BY'] = (
+                settings_portal.responsible_id_copy_catalog)
+            product_in_catalog.properties['PRICE'] = None
+            product_in_catalog.properties[
+                settings_portal.price_with_tax_code] = None
             del product_in_catalog.properties['ID']
             new_id_product_in_catalog = product_in_catalog.add_catalog()
             productrow.properties['productId'] = new_id_product_in_catalog
@@ -470,6 +484,7 @@ def send_products(request):
 
     return JsonResponse({'result': 'ok'})
 
+
 @xframe_options_exempt
 @csrf_exempt
 def export_excel(request):
@@ -537,7 +552,8 @@ def export_excel(request):
         for col_num, cell_value in enumerate(row, 1):
             worksheet.row_dimensions[row_num].height = 30
             cell = worksheet.cell(row=row_num, column=col_num)
-            alignment = Alignment(vertical='center', wrap_text=True, horizontal='left')
+            alignment = Alignment(vertical='center', wrap_text=True,
+                                  horizontal='left')
             cell.alignment = alignment
             cell.value = cell_value
 

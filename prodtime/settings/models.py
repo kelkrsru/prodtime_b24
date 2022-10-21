@@ -113,6 +113,30 @@ class SettingsPortal(models.Model):
         default='UF_CRM_0000000000',
         max_length=30,
     )
+    smart_factory_number_id = models.PositiveIntegerField(
+        verbose_name='ID smart процесса Заводские номера',
+        help_text='ID smart процесса, в котором хранятся элементы с '
+                  'заводскими номерами',
+        default=0,
+    )
+    factory_number_code = models.CharField(
+        verbose_name='Код свойства Заводской номер',
+        help_text='Код свойства Заводской номер в каталоге товаров',
+        default='PROPERTY_00',
+        max_length=30,
+    )
+    responsible_id_copy_catalog = models.PositiveIntegerField(
+        verbose_name='ID ответственного при копировании в каталог',
+        help_text='ID ответственного сотрудника за созданный товар при '
+                  'копировании его в каталог',
+        default=1,
+    )
+    price_with_tax_code = models.CharField(
+        verbose_name='Код свойства Цена с налогом',
+        help_text='Код свойства Цена с налогом в каталоге товаров',
+        default='PROPERTY_00',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

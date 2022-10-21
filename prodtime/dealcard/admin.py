@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ProdTimeDeal
+from dealcard.models import Deal, ProdTimeDeal
 
 
 class ProdTimeDealAdmin(admin.ModelAdmin):
@@ -9,6 +9,12 @@ class ProdTimeDealAdmin(admin.ModelAdmin):
         'deal_id',
         'portal',
     )
+
+
+@admin.register(Deal)
+class DealAdmin(admin.ModelAdmin):
+    list_display = ('deal_id', 'general_number', 'last_factory_number',
+                    'portal')
 
 
 admin.site.register(ProdTimeDeal, ProdTimeDealAdmin)

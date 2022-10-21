@@ -16,7 +16,7 @@ from openpyxl.styles import Alignment
 
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal
-from .models import ProdTimeDeal
+from dealcard.models import Deal, ProdTimeDeal
 
 from pybitrix24 import Bitrix24
 
@@ -47,6 +47,12 @@ def index(request):
     try:
         bx24_deal = DealB24(deal_id, portal)
         bx24_deal.get_deal_products()
+
+        deal, created = Deal.objects.get_or_create(
+            portal=portal, deal_id=bx24_deal.deal_id,
+            defaults={'general_number': '000.'}
+        )
+
         bx24_templates = TemplateDocB24(portal)
         result_templs = bx24_templates.get_all_templates()['templates']
         templates = []
@@ -59,6 +65,11 @@ def index(request):
         return render(request, 'error.html', {
             'error_name': ex.args[0],
             'error_description': ex.args[1]
+        })
+    except Exception as ex:
+        return render(request, 'error.html', {
+            'error_name': ex.args[0],
+            'error_description': ex.args[0]
         })
 
     products = []
@@ -78,7 +89,8 @@ def index(request):
             'bonus_type_id': int(product['DISCOUNT_TYPE_ID']),
             'bonus': round(decimal.Decimal(product['DISCOUNT_RATE']), 2),
             'bonus_sum': round(decimal.Decimal(product['DISCOUNT_SUM']), 2),
-            'tax': round(decimal.Decimal(product['TAX_RATE']), 2),
+            'tax': 0 if not product['TAX_RATE'] else round(
+                decimal.Decimal(product['TAX_RATE']), 2),
             'tax_included': True if product['TAX_INCLUDED'] == 'Y' else False,
             'sort': int(product['SORT']),
         }
@@ -97,6 +109,9 @@ def index(request):
                                                                            '.')
             product_value['finish'] = prodtime.finish
             product_value['made'] = prodtime.made
+            product_value['smart_id_factory_number'] = (
+                prodtime.smart_id_factory_number)
+            product_value['factory_number'] = prodtime.factory_number
             product_value['id'] = prodtime.pk
             prodtime.name = product_value['name']
             prodtime.price = product_value['price']
@@ -147,8 +162,15 @@ def index(request):
             product_value['equivalent'] = str(prodtime.equivalent).replace(
                 ',', '.')
         else:
-            product_in_catalog = ProductB24(portal,
-                                            prodtime.product_id_b24)
+            try:
+                product_in_catalog = ProductB24(portal,
+                                                prodtime.product_id_b24)
+            except RuntimeError as ex:
+                return render(request, 'error.html', {
+                    'error_name': ex.args[0],
+                    'error_description': f'{ex.args[1]} для товара '
+                                         f'{prodtime.name}'
+                })
             equivalent_code = settings_portal.equivalent_code
             if (not product_in_catalog.props
                     or equivalent_code not in product_in_catalog.props
@@ -188,6 +210,7 @@ def index(request):
         'member_id': member_id,
         'deal_id': deal_id,
         'templates': templates,
+        'deal': deal,
     }
     return render(request, template, context)
 
@@ -200,6 +223,12 @@ def save(request):
     product_id = request.POST.get('id')
     type_field = request.POST.get('type')
     value = request.POST.get('value')
+
+    if type_field == 'general-number':
+        deal = get_object_or_404(Deal, pk=request.POST.get('id'))
+        deal.general_number = value
+        deal.save()
+        return JsonResponse({"success": "Updated"})
 
     prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal, pk=product_id)
     if type_field == 'name-for-print':
@@ -260,7 +289,7 @@ def create(request):
     if not products_id:
         return JsonResponse({
             'result': 'noproducts',
-            "info": ('Вы не выбрали товары.')
+            "info": 'Вы не выбрали товары.'
         })
 
     try:
@@ -458,6 +487,11 @@ def copy_products(request):
                     'value'] = str(product.equivalent)
             product_in_catalog.props['NAME'] = product.name_for_print
             product_in_catalog.props['SECTION_ID'] = new_section_id
+            product_in_catalog.props['CREATED_BY'] = (
+                settings_portal.responsible_id_copy_catalog)
+            product_in_catalog.props['PRICE'] = None
+            product_in_catalog.props[
+                settings_portal.price_with_tax_code] = None
             del product_in_catalog.props['ID']
             new_id_product_in_catalog = product_in_catalog.add_catalog()
             product_in_catalog.productrow[
@@ -476,6 +510,45 @@ def copy_products(request):
             })
 
     return JsonResponse({'result': result_copy})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def write_factory_number(request):
+    """Метод создания заводских номеров."""
+
+    member_id = request.POST.get('member_id')
+    deal_id = request.POST.get('deal_id')
+    portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
+
+    try:
+        deal = Deal.objects.get(deal_id=deal_id, portal=portal)
+        products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
+        deal_b24 = DealB24(deal_id, portal)
+    except Exception as ex:
+        return JsonResponse({'result': 'error', 'info': ex.args[0]})
+
+    for product in products:
+        try:
+            product_in_catalog = ProductB24(portal, product.product_id_b24)
+            if product.quantity > 1:
+                continue
+            product.factory_number = '{}{}'.format(
+                deal.general_number,
+                str(deal.last_factory_number + 1)
+            )
+            product.save()
+            deal.last_factory_number += 1
+            deal.save()
+        except Exception as ex:
+            return JsonResponse({
+                    'result': 'error',
+                    'info': f'{ex.args[0]} для товара {product.name = }'
+                })
+
+    return JsonResponse({'result': 'success', 'info': 'test'})
 
 
 @xframe_options_exempt

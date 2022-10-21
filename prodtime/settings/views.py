@@ -5,7 +5,8 @@ from django.views.decorators.csrf import csrf_exempt
 from typing import Optional
 
 from .models import SettingsPortal
-from .forms import SettingsDealPortalForm, SettingsEquivalentPortalForm
+from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
+                    SettingsFactoryNumbersPortalForm)
 from core.models import TemplateDocFields, Portals
 from dealcard.views import _create_portal
 
@@ -58,11 +59,24 @@ def index(request):
             instance=settings_portal,
         )
 
+    if 'save-settings-factory_numbers' in request.POST:
+        form_fn = SettingsFactoryNumbersPortalForm(
+            request.POST or None,
+            instance=settings_portal,
+        )
+        if form_fn.is_valid():
+            fields_form = form_fn.save(commit=False)
+            fields_form.portal = portal
+            fields_form.save()
+    else:
+        form_fn = SettingsFactoryNumbersPortalForm(instance=settings_portal)
+
     fields = TemplateDocFields.objects.all()
     context = {
         'fields': fields,
         'form_deal': form_deal,
         'form_equ': form_equ,
+        'form_fn': form_fn,
         'member_id': member_id,
     }
     return render(request, template, context)

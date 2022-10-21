@@ -236,6 +236,17 @@ class ProdTime(CreatedModel):
         verbose_name='Готовность изделия',
         default=False,
     )
+    factory_number = models.CharField(
+        verbose_name='Заводской номер',
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+    smart_id_factory_number = models.PositiveIntegerField(
+        verbose_name='ID элемента smart процесса Заводские номера',
+        blank=True,
+        null=True,
+    )
     sort = models.PositiveIntegerField(
         verbose_name='Сортировка',
         default=0
@@ -252,3 +263,25 @@ class ProdTime(CreatedModel):
     class Meta:
         abstract = True
         unique_together = ['product_id_b24', 'portal']
+
+
+class Entity(CreatedModel):
+    """Модель для хранения параметров сущности-объекта Б24."""
+    general_number = models.CharField(
+        verbose_name='Основная часть заводского номера',
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    last_factory_number = models.PositiveIntegerField(
+        verbose_name='Последний заводской номер',
+        default=0,
+    )
+    portal = models.ForeignKey(
+        Portals,
+        verbose_name='Портал',
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        abstract = True

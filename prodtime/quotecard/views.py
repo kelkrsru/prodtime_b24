@@ -84,7 +84,8 @@ def index(request):
             'bonus_type_id': int(product['DISCOUNT_TYPE_ID']),
             'bonus': round(decimal.Decimal(product['DISCOUNT_RATE']), 2),
             'bonus_sum': round(decimal.Decimal(product['DISCOUNT_SUM']), 2),
-            'tax': round(decimal.Decimal(product['TAX_RATE']), 2),
+            'tax': 0 if not product['TAX_RATE'] else round(
+                decimal.Decimal(product['TAX_RATE']), 2),
             'tax_included': True if product['TAX_INCLUDED'] == 'Y' else False,
             'sort': int(product['SORT']),
         }
@@ -497,8 +498,9 @@ def export_excel(request):
     products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id)
     products = sorted(products, key=lambda prod: prod.sort)
 
+    quote = QuoteB24(portal, quote_id)
+
     try:
-        quote = QuoteB24(portal, quote_id)
         company = CompanyB24(portal, quote.company_id)
         company_name = company.name
     except RuntimeError:
@@ -508,7 +510,9 @@ def export_excel(request):
         content_type='application/vnd.openxmlformats-officedocument.'
                      'spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = 'attachment; filename=report.xlsx'
+    response['Content-Disposition'] = 'attachment; filename={}.xlsx'.format(
+        quote.properties.get('UF_CRM_630DB207D313F') or 'report'
+    )
 
     workbook = Workbook()
     worksheet = workbook.active

@@ -29,5 +29,6 @@ class SettingsFactoryNumbersPortalForm(forms.ModelForm):
 
     class Meta:
         model = SettingsPortal
-        fields = ('smart_factory_number_id', 'factory_number_code',
+        fields = ('smart_factory_number_id', 'smart_factory_number_short_code',
+                  'smart_factory_number_code', 'factory_number_code',
                   'responsible_id_copy_catalog', 'price_with_tax_code')

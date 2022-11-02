@@ -11,7 +11,7 @@ class ObjB24:
         self.bx24 = Bitrix24(portal.name)
         self.bx24._access_token = portal.auth_id
         self.id = id_obj
-        if self.GET_PROPS_REST_METHOD:
+        if self.GET_PROPS_REST_METHOD and self.id:
             self.properties = self._get_properties()
 
     def _get_properties(self):
@@ -218,8 +218,9 @@ class ProductRowB24(ObjB24):
 
     def __init__(self, portal: Portals, obj_id: int):
         super().__init__(portal, obj_id)
-        self.properties = self.properties.get('productRow')
-        self.id_in_catalog = self.properties.get('productId')
+        if hasattr(self, 'properties'):
+            self.properties = self.properties.get('productRow')
+            self.id_in_catalog = self.properties.get('productId')
 
     def update(self, product_id):
         """Метод изменения товарной позиции."""
@@ -228,6 +229,24 @@ class ProductRowB24(ObjB24):
             {
                 'id': product_id,
                 'fields': self.properties
+            }
+        ))
+
+    def add(self, fields):
+        """Метод добавления товарной позиции."""
+        return self._check_error(self.bx24.call(
+            'crm.item.productrow.add',
+            {
+                'fields': fields
+            }
+        ))
+
+    def delete(self):
+        """Метод удаления товарной позиции."""
+        return self._check_error(self.bx24.call(
+            'crm.item.productrow.delete',
+            {
+                'id': self.properties.get('id')
             }
         ))
 
@@ -257,6 +276,29 @@ class SmartProcessB24(ObjB24):
                 }
             }
         )).get('productRows')
+
+    def create_element(self, fields):
+        """Метод для создания элемента smart процесса."""
+        return self._check_error(self.bx24.call(
+            'crm.item.add',
+            {
+                'entityTypeId': int(self.properties.get('type').get(
+                    'entityTypeId')),
+                'fields': fields,
+            }
+        ))
+
+    def update_element(self, id_element, fields):
+        """Метод для обновления элемента smart процесса."""
+        return self._check_error(self.bx24.call(
+            'crm.item.update',
+            {
+                'entityTypeId': int(self.properties.get('type').get(
+                    'entityTypeId')),
+                'id': id_element,
+                'fields': fields,
+            }
+        ))
 
 
 class ListB24(ObjB24):

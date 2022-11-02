@@ -2,6 +2,10 @@
 
 {% block title %}Карточка сделки{% endblock %}
 {% block content %}
+  <div id="div-loader" style="width: 100%; height: 100%; opacity: 0.5; position: fixed; background: #bacbe6; z-index: 100; text-align: center; display: none">
+    {% load static %}
+    <img src="{% static 'img/loading.gif' %}" alt="loading gif">
+  </div>
   <div class="container mt-5">
     <div class="card bg-light">
       <div class="card-body">
@@ -93,13 +97,13 @@
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
               {% if product.factory_number %}
-                <td data-id="{{ product.id }}"><input type="text" class="form-control"
+                <td data-id="{{ product.id }}"><input id="{{ product.id }}" type="text" class="form-control factory-number-input"
                          name="factory-number-1" value="{{ product.factory_number }}" readonly></td> {# Заводской номер #}
-                <td data-id="{{ product.id }}"><button class="btn btn-outline-info" onclick="editFactoryNumber()" title="Изменить заводской номер">🔢</button></td> {# Изменить заводской номер #}
+                <td data-id="{{ product.id }}"><button class="btn btn-outline-info factory-number-btn" title="Изменить заводской номер">🔢</button></td> {# Изменить заводской номер #}
               {% else %}
-                <td data-id="{{ product.id }}"><input type="text" class="form-control"
-                         name="factory-number-1" value="Не задан" readonly></td> {# Заводской номер #}
-                <td data-id="{{ product.id }}"><button class="btn btn-outline-info" onclick="editFactoryNumber()" disabled>🔢</button></td> {# Изменить заводской номер #}
+                <td data-id="{{ product.id }}"><input id="{{ product.id }}" type="text" class="form-control factory-number-input"
+                         name="factory-number-1" value="Не задан" readonly disabled></td> {# Заводской номер #}
+                <td data-id="{{ product.id }}"><button class="btn btn-outline-info" disabled>🔢</button></td> {# Изменить заводской номер #}
               {% endif %}
               {% if product.finish == True %}
                 <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox" checked></td> {# Выпуск изделия #}
@@ -131,6 +135,22 @@
 {% endblock %}
 {% block user_scripts %}
   <script>
+    $(".factory-number-btn").click(function() {
+        const td = $(this).parent("td");
+        const name_elem = "#" + td.data("id");
+        $(name_elem).removeAttr('readonly');
+    })
+
+    $(".factory-number-input").focus(function() {
+        $(this).removeClass('text-danger');
+    });
+
+    $(".factory-number-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        updateFactoryNumber(td.data("id"),value,this);
+    });
+
     $(".finish-check-input").change(function() {
         const td = $(this).parent("td");
         if (this.checked === false){
@@ -218,6 +238,28 @@
             });
     }
 
+    function updateFactoryNumber(id,value,control) {
+        $.ajax({
+            url: "{% url 'dealcard:update-factory-number' %}",
+            type: "POST",
+            data: {product_id: id, value: value, member_id: "{{ member_id }}"},
+        })
+            .done(function (response) {
+                if(response.result === 'error'){
+                    alert(response.info);
+                    $(control).addClass('text-danger');
+                }
+                else if(response.result === 'success'){
+                    $(control).removeClass('text-danger');
+                    $(control).attr('readonly', '');
+                }
+            })
+            .fail(function () {
+                $(control).removeClass('text-success');
+                $(control).addClass('text-danger');
+            });
+    }
+
     function createTaskandDeal(id, member_id) {
         $.ajax({
             url: "{% url 'dealcard:create' %}",
@@ -267,15 +309,19 @@
     }
 
     function WriteFactoryNumbers() {
+        document.getElementById("div-loader").style.display = "block";
         $.ajax({
             url: "{% url 'dealcard:write-factory-number' %}",
             type: "POST",
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
+                document.getElementById("div-loader").style.display = "none";
                 alert(response.info);
+                window.location.href = "{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}";
             })
             .fail(function () {
+                document.getElementById("div-loader").style.display = "none";
                 alert('Ошибка при создании заводских номеров');
             });
     }

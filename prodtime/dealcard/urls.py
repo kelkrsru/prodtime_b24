@@ -11,6 +11,8 @@ urlpatterns = [
     path('copy-products/', views.copy_products, name='copy-products'),
     path('write-factory-number/', views.write_factory_number,
          name='write-factory-number'),
+    path('update-factory-number/', views.update_factory_number,
+         name='update-factory-number'),
     path('send-equivalent/', views.send_equivalent, name='send-equivalent'),
     path('export-excel/', views.export_excel, name='export-excel'),
 ]

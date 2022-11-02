@@ -119,6 +119,18 @@ class SettingsPortal(models.Model):
                   'заводскими номерами',
         default=0,
     )
+    smart_factory_number_short_code = models.CharField(
+        verbose_name='Текстовый код smart процесса Заводские номера',
+        help_text='Текстовый код smart процесса Заводские номера',
+        default='Tb4',
+        max_length=10,
+    )
+    smart_factory_number_code = models.CharField(
+        verbose_name='Код поля Заводской номер',
+        help_text='Код поля Заводской номер в smart процессе',
+        default='ufCrm0_0000000000000',
+        max_length=30,
+    )
     factory_number_code = models.CharField(
         verbose_name='Код свойства Заводской номер',
         help_text='Код свойства Заводской номер в каталоге товаров',

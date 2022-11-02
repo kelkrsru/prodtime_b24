@@ -14,6 +14,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
+from core.bitrix24.bitrix24 import ProductB24, DealB24, ProductRowB24, \
+    SmartProcessB24, CompanyB24
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal
 from dealcard.models import Deal, ProdTimeDeal
@@ -45,7 +47,7 @@ def index(request):
                                                         portal=portal)
 
     try:
-        bx24_deal = DealB24(deal_id, portal)
+        bx24_deal = DealB24Old(deal_id, portal)
         bx24_deal.get_deal_products()
 
         deal, created = Deal.objects.get_or_create(
@@ -53,7 +55,7 @@ def index(request):
             defaults={'general_number': '000.'}
         )
 
-        bx24_templates = TemplateDocB24(portal)
+        bx24_templates = TemplateDocB24Old(portal)
         result_templs = bx24_templates.get_all_templates()['templates']
         templates = []
         for templ in result_templs:
@@ -163,8 +165,8 @@ def index(request):
                 ',', '.')
         else:
             try:
-                product_in_catalog = ProductB24(portal,
-                                                prodtime.product_id_b24)
+                product_in_catalog = ProductB24Old(portal,
+                                                   prodtime.product_id_b24)
             except RuntimeError as ex:
                 return render(request, 'error.html', {
                     'error_name': ex.args[0],
@@ -248,7 +250,6 @@ def save(request):
             prodtime.finish = True
         if value == 'false':
             prodtime.finish = False
-    prodtime.save()
     if type_field == 'made':
         if value == 'true':
             prodtime.made = True
@@ -257,6 +258,50 @@ def save(request):
     prodtime.save()
 
     return JsonResponse({"success": "Updated"})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def update_factory_number(request):
+    """Метод для изменения заводского номера в элементе smart процесса."""
+    product_id = request.POST.get('product_id')
+    member_id = request.POST.get('member_id')
+    value = request.POST.get('value')
+    portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
+
+    try:
+        prodtime = ProdTimeDeal.objects.get(pk=product_id)
+    except ObjectDoesNotExist as ex:
+        return JsonResponse({'result': 'error', 'info': ex.args[0]})
+
+    try:
+        smart_factory_number = SmartProcessB24(
+            portal, settings_portal.smart_factory_number_id)
+        fields = {
+            'title': value,
+            settings_portal.smart_factory_number_code: value
+        }
+        result = smart_factory_number.update_element(
+            prodtime.smart_id_factory_number, fields)
+
+        if 'item' not in result or result.get('item').get(
+                settings_portal.smart_factory_number_code
+        ) != value:
+            return JsonResponse(
+                {'result': 'error',
+                 'info': f'Не удалось обновить элемент с id = '
+                         f'{prodtime.smart_id_factory_number} smart процесса '
+                         f'Заводские номера '})
+
+        prodtime.factory_number = value
+        prodtime.save()
+
+    except RuntimeError as ex:
+        return JsonResponse({'result': 'error', 'info': ex.args[0]})
+
+    return JsonResponse({'result': 'success'})
 
 
 @xframe_options_exempt
@@ -293,7 +338,7 @@ def create(request):
         })
 
     try:
-        bx24_deal = DealB24(deal_id, portal)
+        bx24_deal = DealB24Old(deal_id, portal)
         bx24_deal.get_deal_responsible()
         bx24_deal.get_deal_company()
         title_new_deal = (settings_portal.name_deal
@@ -331,7 +376,7 @@ def create(request):
             "info": ('Создание задачи отключено в настройках. Сделка '
                      'создана успешно.')
         })
-    bx24_task = TaskB24(portal)
+    bx24_task = TaskB24Old(portal)
     title_task = (settings_portal.name_task
                   .replace('{ProductName}', '')
                   .replace('{DealId}', str(deal_id)))
@@ -359,7 +404,7 @@ def create_doc(request):
 
     if int(template_id) == settings_portal.template_id:
         try:
-            deal = DealB24(deal_id, portal)
+            deal = DealB24Old(deal_id, portal)
             res = deal.get_deal_kp_numbers()
             kp_code = settings_portal.kp_code
             kp_last_num_code = settings_portal.kp_last_num_code
@@ -441,7 +486,7 @@ def create_doc(request):
         values['DocumentNumber'] = kp_number
 
     try:
-        bx24_template_doc = TemplateDocB24(portal)
+        bx24_template_doc = TemplateDocB24Old(portal)
         result = bx24_template_doc.create_docs(template_id, deal_id, values)
     except RuntimeError as ex:
         return render(request, 'error.html', {
@@ -470,9 +515,9 @@ def copy_products(request):
         if product.name == product.name_for_print:
             continue
         try:
-            product_in_catalog = ProductB24(portal, product.product_id_b24)
+            product_in_catalog = ProductB24Old(portal, product.product_id_b24)
             section_id = product_in_catalog.props.get('SECTION_ID')
-            element_list = ListsB24(portal, settings_portal.section_list_id)
+            element_list = ListsB24Old(portal, settings_portal.section_list_id)
             element_list.get_element_by_filter(
                 section_id, settings_portal.real_section_code)
             if not element_list.element_props:
@@ -525,15 +570,77 @@ def write_factory_number(request):
 
     try:
         deal = Deal.objects.get(deal_id=deal_id, portal=portal)
-        products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
-        deal_b24 = DealB24(deal_id, portal)
+        products = list(
+            ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+        products = sorted(products, key=lambda prod: prod.sort)
+        deal_b24 = DealB24(portal, deal_id)
     except Exception as ex:
         return JsonResponse({'result': 'error', 'info': ex.args[0]})
 
+    i = 0
+    result_work = ''
     for product in products:
         try:
-            product_in_catalog = ProductB24(portal, product.product_id_b24)
-            if product.quantity > 1:
+            productrow = ProductRowB24(portal, product.product_id_b24)
+            product_in_catalog = ProductB24(portal, productrow.id_in_catalog)
+            if not product_in_catalog.properties.get(
+                    settings_portal.factory_number_code):
+                continue
+            if product.factory_number and product.smart_id_factory_number:
+                continue
+            if product.quantity > 1 and (int(product.quantity)
+                                         == product.quantity):
+                start_sort = product.sort
+                new_productrow = ProductRowB24(portal, 0)
+                for count in range(int(product.quantity)):
+                    fields = {
+                        'ownerId': deal_id,
+                        'ownerType': 'D',
+                        'productId': product_in_catalog.id,
+                        'price': str(product.price),
+                        'quantity': 1,
+                        'discountTypeId': product.bonus_type_id,
+                        'discountRate': str(product.bonus),
+                        'discountSum': str(product.bonus_sum / product.quantity),
+                        'taxRate': str(product.tax),
+                        'measureCode': product.measure_code,
+                        'measureName': product.measure_name,
+                        'sort': start_sort + count
+                    }
+                    result = new_productrow.add(fields)
+                    new_product = ProdTimeDeal.objects.create(
+                        product_id_b24=result.get('productRow').get('id'),
+                        name=product.name,
+                        name_for_print=product.name_for_print,
+                        price=product.price,
+                        price_account=product.price_account,
+                        price_exclusive=product.price_exclusive,
+                        price_netto=product.price_netto,
+                        price_brutto=product.price_brutto,
+                        quantity=1,
+                        measure_code=product.measure_code,
+                        measure_name=product.measure_name,
+                        bonus_type_id=product.bonus_type_id,
+                        bonus=product.bonus,
+                        bonus_sum=round(decimal.Decimal(result.get(
+                            'productRow').get('discountSum')), 2),
+                        tax=product.tax,
+                        tax_included=product.tax_included,
+                        tax_sum=product.price_exclusive * product.tax / 100,
+                        sum=product.price_account,
+                        sort=start_sort + count,
+                        prod_time=product.prod_time,
+                        count_days=product.count_days,
+                        equivalent=product.equivalent,
+                        equivalent_count=product.equivalent,
+                        is_change_equivalent=product.is_change_equivalent,
+                        finish=product.finish,
+                        made=product.made,
+                        deal_id=deal_id,
+                        portal=portal,
+                    )
+                    products.append(new_product)
+                productrow.delete()
                 continue
             product.factory_number = '{}{}'.format(
                 deal.general_number,
@@ -542,13 +649,46 @@ def write_factory_number(request):
             product.save()
             deal.last_factory_number += 1
             deal.save()
+            i += 1
+            smart_factory_number = SmartProcessB24(
+                portal, settings_portal.smart_factory_number_id)
+            fields = {
+                'title': product.factory_number,
+                'assigned_by_id': deal_b24.properties.get('ASSIGNED_BY_ID'),
+                'parentId2': deal_id,
+                'company_id': deal_b24.company_id,
+                settings_portal.smart_factory_number_code: (
+                    product.factory_number),
+            }
+            result = smart_factory_number.create_element(fields)
+            if 'item' not in result:
+                continue
+            product.smart_id_factory_number = int(result.get('item').get('id'))
+            product.save()
+
+            fields = {
+                'ownerId': product.smart_id_factory_number,
+                'ownerType': settings_portal.smart_factory_number_short_code,
+                'productId': product_in_catalog.id,
+                'quantity': 1
+            }
+            productrow.add(fields)
+            result_work += (f'\nДля товара {product.name} установлен заводской'
+                            f' номер {product.factory_number}')
+
         except Exception as ex:
             return JsonResponse({
-                    'result': 'error',
-                    'info': f'{ex.args[0]} для товара {product.name = }'
-                })
+                'result': 'error',
+                'info': f'{ex.args[0]} для товара {product.name = }'
+            })
 
-    return JsonResponse({'result': 'success', 'info': 'test'})
+    if i == 0:
+        return JsonResponse({
+            'result': 'success',
+            'info': 'Нет товаров, в которых можно установить заводские номера'
+        })
+    else:
+        return JsonResponse({'result': 'success', 'info': result_work})
 
 
 @xframe_options_exempt
@@ -565,7 +705,7 @@ def send_equivalent(request):
     sum_equivalent = ProdTimeDeal.objects.filter(
         portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
     sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
-    deal = DealB24(deal_id, portal)
+    deal = DealB24Old(deal_id, portal)
     deal.send_equivalent(settings_portal.sum_equivalent_code, sum_equivalent)
 
     return JsonResponse({'result': sum_equivalent})
@@ -583,11 +723,10 @@ def export_excel(request):
     products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     products = sorted(products, key=lambda prod: prod.sort)
 
+    deal = DealB24(portal, deal_id)
+
     try:
-        deal = DealB24(deal_id, portal)
-        deal.get_deal_company()
-        company = CompanyB24(portal, deal.deal_company)
-        company.get_name()
+        company = CompanyB24(portal, deal.company_id)
         company_name = company.name
     except RuntimeError:
         company_name = 'Не удалось получить наименование компании'
@@ -596,7 +735,9 @@ def export_excel(request):
         content_type='application/vnd.openxmlformats-officedocument.'
                      'spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = 'attachment; filename=report.xlsx'
+    response['Content-Disposition'] = 'attachment; filename={}.xlsx'.format(
+        deal.properties.get('UF_CRM_1661507258282') or 'report'
+    )
 
     workbook = Workbook()
     worksheet = workbook.active
@@ -606,7 +747,8 @@ def export_excel(request):
         'Товар',
         'Кол-во',
         'Кол-во раб. дней',
-        'Срок производства'
+        'Срок производства',
+        'Заводской номер'
     ]
 
     worksheet.merge_cells('B1:D1')
@@ -622,6 +764,7 @@ def export_excel(request):
     worksheet.column_dimensions['B'].width = 10
     worksheet.column_dimensions['C'].width = 17
     worksheet.column_dimensions['D'].width = 20
+    worksheet.column_dimensions['E'].width = 20
 
     for col_num, column_title in enumerate(columns, 1):
         cell = worksheet.cell(row=row_num, column=col_num)
@@ -635,6 +778,7 @@ def export_excel(request):
             product.quantity,
             product.count_days,
             product.prod_time,
+            product.factory_number,
         ]
 
         for col_num, cell_value in enumerate(row, 1):
@@ -669,7 +813,7 @@ def _create_portal(member_id: str) -> Portals:
     return portal
 
 
-class ObjB24:
+class ObjB24Old:
     """Класс объекта Битрикс24"""
 
     def __init__(self, portal: Portals):
@@ -687,11 +831,11 @@ class ObjB24:
             raise RuntimeError('Error', 'No description error')
 
 
-class DealB24(ObjB24):
+class DealB24Old(ObjB24Old):
     """Класс Сделка Битрикс24"""
 
     def __init__(self, deal_id: int, portal: Portals):
-        super(DealB24, self).__init__(portal)
+        super(DealB24Old, self).__init__(portal)
         self.deal_id = deal_id
         self.deal_products = None
         self.deal_responsible = None
@@ -797,7 +941,7 @@ class DealB24(ObjB24):
         return self._check_error(result)
 
 
-class TemplateDocB24(ObjB24):
+class TemplateDocB24Old(ObjB24Old):
     """Класс Шаблоны и Документы Битрикс24"""
 
     def get_all_templates(self):
@@ -838,11 +982,11 @@ class TemplateDocB24(ObjB24):
         return self._check_error(result)
 
 
-class CompanyB24(ObjB24):
+class CompanyB24Old(ObjB24Old):
     """Класс Компания Битрикс24."""
 
     def __init__(self, portal, company_id=None):
-        super(CompanyB24, self).__init__(portal)
+        super(CompanyB24Old, self).__init__(portal)
         self.id = company_id
         self.name = None
 
@@ -854,7 +998,7 @@ class CompanyB24(ObjB24):
         self.name = (self._check_error(result))['TITLE']
 
 
-class TaskB24(ObjB24):
+class TaskB24Old(ObjB24Old):
     """Класс Задача Битрикс24."""
 
     def create_task(self, title, responsible_id, deal_id, deadline):
@@ -876,11 +1020,11 @@ class TaskB24(ObjB24):
         return result
 
 
-class ProductB24(ObjB24):
+class ProductB24Old(ObjB24Old):
     """Класс товара каталога Битрикс24."""
 
     def __init__(self, portal, product_id):
-        super(ProductB24, self).__init__(portal)
+        super(ProductB24Old, self).__init__(portal)
         self.id = product_id
         self.productrow = None
         self.id_catalog = self.get_product_catalog_id()
@@ -918,11 +1062,11 @@ class ProductB24(ObjB24):
         return self._check_error(result)
 
 
-class ListsB24(ObjB24):
+class ListsB24Old(ObjB24Old):
     """Class List Bitrix24."""
 
     def __init__(self, portal, list_id):
-        super(ListsB24, self).__init__(portal)
+        super(ListsB24Old, self).__init__(portal)
         self.id = list_id
         self.element_props = None
 

@@ -6,9 +6,12 @@ class ProdTimeDealAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'product_id_b24',
+        'sort',
         'deal_id',
         'portal',
     )
+    search_fields = ('deal_id',)
+    list_editable = ('sort',)
 
 
 @admin.register(Deal)

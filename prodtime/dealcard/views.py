@@ -324,6 +324,7 @@ def create(request):
         })
 
     i = 0
+    equivalent_count = decimal.Decimal(0)
     while i < len(products_id):
         prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal,
                                                    pk=products_id[i])
@@ -331,6 +332,7 @@ def create(request):
             del products_id[i]
         else:
             i += 1
+            equivalent_count += prodtime.equivalent_count
     if not products_id:
         return JsonResponse({
             'result': 'noproducts',
@@ -344,16 +346,17 @@ def create(request):
         title_new_deal = (settings_portal.name_deal
                           .replace('{ProductName}', '')
                           .replace('{DealId}', str(deal_id)))
-        new_deal_id = bx24_deal.create_deal(
-            title_new_deal,
-            settings_portal.category_id,
-            settings_portal.stage_code,
-            bx24_deal.deal_responsible,
-            deal_id,
-            settings_portal.real_deal_code,
-            bx24_deal.deal_company,
-            bx24_deal.deal_contact,
-        )
+        fields = {
+                'TITLE': title_new_deal,
+                'CATEGORY_ID': settings_portal.category_id,
+                'STAGE_ID': settings_portal.stage_code,
+                'ASSIGNED_BY_ID': bx24_deal.deal_responsible,
+                settings_portal.real_deal_code: deal_id,
+                'COMPANY_ID': bx24_deal.deal_company,
+                'CONTACT_ID': bx24_deal.deal_contact,
+                settings_portal.sum_equivalent_code: str(equivalent_count),
+            }
+        new_deal_id = bx24_deal.create_deal(fields)
     except RuntimeError as ex:
         return render(request, 'error.html', {
             'error_name': ex.args[0],
@@ -605,7 +608,7 @@ def write_factory_number(request):
                         'taxRate': str(product.tax),
                         'measureCode': product.measure_code,
                         'measureName': product.measure_name,
-                        'sort': start_sort + count
+                        'sort': start_sort
                     }
                     result = new_productrow.add(fields)
                     new_product = ProdTimeDeal.objects.create(
@@ -883,23 +886,11 @@ class DealB24Old(ObjB24Old):
         result = self.bx24.call(method_rest, params)
         return self._check_error(result)
 
-    def create_deal(self, title, category_id, stage_id, responsible_id,
-                    rel_deal_id, rel_deal_code, company_id, contact_id):
+    def create_deal(self, fields):
         """Создать сделку в Битрикс24"""
 
         method_rest = 'crm.deal.add'
-        params = {
-            'fields': {
-                'TITLE': title,
-                'CATEGORY_ID': category_id,
-                'STAGE_ID': stage_id,
-                'ASSIGNED_BY_ID': responsible_id,
-                rel_deal_code: rel_deal_id,
-                'COMPANY_ID': company_id,
-                'CONTACT_ID': contact_id,
-            }
-        }
-        result = self.bx24.call(method_rest, params)
+        result = self.bx24.call(method_rest, {'fields': fields})
         return self._check_error(result)
 
     def add_deal_product(self, prod_row):

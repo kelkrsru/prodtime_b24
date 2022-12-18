@@ -149,6 +149,27 @@ class SettingsPortal(models.Model):
         default='PROPERTY_00',
         max_length=30,
     )
+    is_auto_article_code = models.CharField(
+        verbose_name='Код свойства Присваивать артикул автоматом',
+        help_text='Код свойства Присваивать артикул автоматом в каталоге '
+                  'товаров. Код, который отдает метод "catalog.product.get"',
+        default='property83',
+        max_length=30,
+    )
+    article_code = models.CharField(
+        verbose_name='Код свойства Артикул',
+        help_text='Код свойства Артикул в каталоге товаров. Код, который '
+                  'отдает метод "catalog.product.get"',
+        default='property84',
+        max_length=30,
+    )
+    section_number_code = models.CharField(
+        verbose_name='Код свойства Номер раздела',
+        help_text='Код свойства Номер раздела в каталоге товаров. Код, '
+                  'который отдает метод "catalog.product.get"',
+        default='property85',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'
@@ -158,4 +179,62 @@ class SettingsPortal(models.Model):
 
     def __str__(self):
         return 'Настройки для портала {}'.format(self.portal.name)
+
+
+class Numeric(models.Model):
+    """Модель настроек нумерации внутри года."""
+
+    portal = models.ForeignKey(
+        Portals,
+        verbose_name='Портал',
+        related_name='numeric_portal',
+        on_delete=models.CASCADE,
+    )
+    year = models.PositiveSmallIntegerField(
+        verbose_name='Год',
+        help_text='Год нумерации',
+    )
+    last_number = models.PositiveSmallIntegerField(
+        verbose_name='Последний номер',
+        help_text='Последний номер в данном году',
+        default=0,
+    )
+
+    class Meta:
+        verbose_name = 'Настройка нумерации'
+        verbose_name_plural = 'Настройки нумерации'
+
+        ordering = ['portal', 'year']
+
+    def __str__(self):
+        return 'Настройки для года {}'.format(self.year)
+
+
+class AssociativeYearNumber(models.Model):
+    """Модель соответствия между годом и его кодом."""
+
+    portal = models.ForeignKey(
+        Portals,
+        verbose_name='Портал',
+        related_name='associative_portal',
+        on_delete=models.CASCADE,
+    )
+    year = models.PositiveSmallIntegerField(
+        verbose_name='Год',
+    )
+    year_code = models.CharField(
+        verbose_name='Код года',
+        max_length=20,
+    )
+
+    class Meta:
+        verbose_name = 'Код года'
+        verbose_name_plural = 'Коды года'
+
+        ordering = ['portal', 'year']
+
+    def __str__(self):
+        return 'Код для года {}'.format(self.year)
+
+
 

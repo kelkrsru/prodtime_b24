@@ -114,6 +114,13 @@ class QuoteB24(ObjB24):
             'crm.quote.productrows.get', {'id': self.id}
         ))
 
+    def update(self, fields):
+        """Обновить предложение."""
+        return self._check_error(self.bx24.call(
+            'crm.quote.update', {'id': self.id, 'fields': fields}
+        ))
+
+
 
 class TemplateDocB24(ObjB24):
     """Класс Шаблоны и Документы."""
@@ -203,13 +210,30 @@ class ActivityB24(ObjB24):
 
 
 class ProductB24(ObjB24):
-    """Класс Товар каталога."""
+    """Класс Товар каталога crm."""
     GET_PROPS_REST_METHOD: str = 'crm.product.get'
 
     def add_catalog(self):
         """Метод добавления товара в каталог."""
         return self._check_error(self.bx24.call('crm.product.add',
                                                 {'fields': self.properties}))
+
+
+class ProductInCatalogB24(ObjB24):
+    """Класс Товар в каталоге."""
+    GET_PROPS_REST_METHOD: str = 'catalog.product.get'
+
+    def __init__(self, portal: Portals, obj_id: int):
+        super().__init__(portal, obj_id)
+        if hasattr(self, 'properties'):
+            self.properties = self.properties.get('product')
+
+    def add(self):
+        """Метод добавления товара в каталог."""
+        method_rest = 'catalog.product.add'
+        params = {'fields': self.properties}
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
 
 
 class ProductRowB24(ObjB24):
@@ -314,15 +338,13 @@ class ListB24(ObjB24):
             }
         ))
 
-    def get_element_by_filter(self, section_id, real_section_code):
-        """Get element list by id."""
+    def get_element_filter(self, filter_dict):
+        """Get element list by filter."""
         return self._check_error(self.bx24.call(
             'lists.element.get',
             {
                 'IBLOCK_TYPE_ID': 'lists',
                 'IBLOCK_ID': self.id,
-                'FILTER': {
-                    f'={real_section_code}': [section_id],
-                },
+                'FILTER': filter_dict,
             }
         ))

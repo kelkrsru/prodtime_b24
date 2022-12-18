@@ -32,3 +32,12 @@ class SettingsFactoryNumbersPortalForm(forms.ModelForm):
         fields = ('smart_factory_number_id', 'smart_factory_number_short_code',
                   'smart_factory_number_code', 'factory_number_code',
                   'responsible_id_copy_catalog', 'price_with_tax_code')
+
+
+class SettingsArticlesPortalForm(forms.ModelForm):
+    """Форма Настройки портала присваивания артикулов."""
+
+    class Meta:
+        model = SettingsPortal
+        fields = ('is_auto_article_code', 'article_code',
+                  'section_number_code')

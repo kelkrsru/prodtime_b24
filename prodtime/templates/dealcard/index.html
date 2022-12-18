@@ -129,6 +129,7 @@
     <div class="row">
       <div class="d-flex flex-row-reverse align-items-center mt-3">
         <button class="btn btn-outline-primary me-3 btn-lg" onclick="ProductsFinish()">Изделие выпущено</button>
+        <button class="btn btn-danger me-3 btn-lg" onclick="CreateArticles()">Тестовая кнопка. Не нажимать!</button>
       </div>
     </div>
   </div>
@@ -301,7 +302,7 @@
             data: {products_id: products_id, member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
-                alert(response.result + response.info);
+                alert(response.info);
             })
             .fail(function () {
                 alert('Ошибка при создании сделки на отгрузку');
@@ -312,6 +313,24 @@
         document.getElementById("div-loader").style.display = "block";
         $.ajax({
             url: "{% url 'dealcard:write-factory-number' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+        })
+            .done(function (response) {
+                document.getElementById("div-loader").style.display = "none";
+                alert(response.info);
+                window.location.href = "{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}";
+            })
+            .fail(function () {
+                document.getElementById("div-loader").style.display = "none";
+                alert('Ошибка при создании заводских номеров');
+            });
+    }
+
+    function CreateArticles() {
+        document.getElementById("div-loader").style.display = "block";
+        $.ajax({
+            url: "{% url 'dealcard:create-articles' %}",
             type: "POST",
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })

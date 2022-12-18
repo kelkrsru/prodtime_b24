@@ -7,6 +7,7 @@ class ProdTimeDealAdmin(admin.ModelAdmin):
         'name',
         'product_id_b24',
         'sort',
+        'factory_number',
         'deal_id',
         'portal',
     )

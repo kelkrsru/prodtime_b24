@@ -10,5 +10,6 @@ urlpatterns = [
     path('copy-products/', views.copy_products, name='copy-products'),
     path('send-products/', views.send_products, name='send-products'),
     path('send-equivalent/', views.send_equivalent, name='send-equivalent'),
+    path('create-articles/', views.create_articles, name='create-articles'),
     path('export-excel/', views.export_excel, name='export-excel'),
 ]

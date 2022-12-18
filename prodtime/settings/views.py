@@ -6,7 +6,8 @@ from typing import Optional
 
 from .models import SettingsPortal
 from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
-                    SettingsFactoryNumbersPortalForm)
+                    SettingsFactoryNumbersPortalForm,
+                    SettingsArticlesPortalForm)
 from core.models import TemplateDocFields, Portals
 from dealcard.views import _create_portal
 
@@ -71,12 +72,25 @@ def index(request):
     else:
         form_fn = SettingsFactoryNumbersPortalForm(instance=settings_portal)
 
+    if 'save-settings-article' in request.POST:
+        form_art = SettingsArticlesPortalForm(
+            request.POST or None,
+            instance=settings_portal,
+        )
+        if form_art.is_valid():
+            fields_form = form_art.save(commit=False)
+            fields_form.portal = portal
+            fields_form.save()
+    else:
+        form_art = SettingsArticlesPortalForm(instance=settings_portal)
+
     fields = TemplateDocFields.objects.all()
     context = {
         'fields': fields,
         'form_deal': form_deal,
         'form_equ': form_equ,
         'form_fn': form_fn,
+        'form_art': form_art,
         'member_id': member_id,
     }
     return render(request, template, context)

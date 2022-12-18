@@ -16,12 +16,12 @@ from openpyxl.styles import Alignment
 
 from core.models import Portals, TemplateDocFields
 from dealcard.models import ProdTimeDeal
-from settings.models import SettingsPortal
+from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from .models import ProdTimeQuote
 
 from pybitrix24 import Bitrix24
 from core.bitrix24.bitrix24 import QuoteB24, TemplateDocB24, ProductB24, \
-    CompanyB24, DealB24, ProductRowB24, ListB24
+    CompanyB24, DealB24, ProductRowB24, ListB24, ProductInCatalogB24
 
 
 @xframe_options_exempt
@@ -47,6 +47,11 @@ def index(request):
     portal: Portals = _create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
+    Numeric.objects.get_or_create(portal=portal,
+                                  year=int(datetime.date.today().year),
+                                  defaults={
+                                      'last_number': 0
+                                  })
 
     try:
         quote = QuoteB24(portal, quote_id)
@@ -215,7 +220,7 @@ def save(request):
         prodtime.name_for_print = value
     if type_field == 'prod-time':
         prodtime.prod_time = value
-    if type_field == 'count-days':
+    if type_field == 'count-days' and value:
         prodtime.count_days = value
     if type_field == 'equivalent':
         if value:
@@ -261,9 +266,11 @@ def create_doc(request):
             })
     else:
         kp_number = ''
+        next_kp_number = 0
 
     products = ProdTimeQuote.objects.filter(portal=portal,
                                             quote_id=quote_id).values()
+    products = sorted(products, key=lambda prod: prod.get('sort'))
     fields = TemplateDocFields.objects.values()
     fields = list(fields)
     prods_for_template = list()
@@ -327,6 +334,10 @@ def create_doc(request):
         bx24_template_doc = TemplateDocB24(portal, 0)
         result = bx24_template_doc.create_docs(template_id, quote_id, values,
                                                parent='quote')
+        if next_kp_number:
+            quote = QuoteB24(portal, quote_id)
+            fields = {'UF_CRM_62D8007A7602C': next_kp_number}
+            quote.update(fields)
     except RuntimeError as ex:
         return render(request, 'error.html', {
             'error_name': ex.args[0],
@@ -334,6 +345,140 @@ def create_doc(request):
         })
 
     return JsonResponse({'result': result})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def create_articles(request):
+    """Метод создания артикулов."""
+
+    member_id = request.POST.get('member_id')
+    quote_id = int(request.POST.get('quote_id'))
+    portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
+    current_year = int(datetime.date.today().year)
+    try:
+        numeric = Numeric.objects.get(portal=portal, year=current_year)
+        last_number_in_year = numeric.last_number
+    except ObjectDoesNotExist:
+        return JsonResponse({'result': 'error', 'info': f'Нумератор для года '
+                                                        f'{current_year} '
+                                                        f'отсутствует'})
+
+    try:
+        year_code = AssociativeYearNumber.objects.get(
+            portal=portal, year=int(datetime.date.today().year)).year_code
+    except ObjectDoesNotExist:
+        return JsonResponse({'result': 'error',
+                             'info': f'Код для года '
+                                     f'{datetime.date.today().year} '
+                                     f'отсутствует в таблице соответствия'})
+
+    try:
+        quote = QuoteB24(portal, quote_id)
+        last_kp_number = int(quote.properties.get('UF_CRM_62D8007A7602C'))
+    except RuntimeError as ex:
+        return JsonResponse({'result': 'error',
+                             'info': str(ex.args[0]) + str(ex.args[1])})
+
+    products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id)
+    result_text = ''
+
+    section_list = ListB24(portal, settings_portal.section_list_id)
+
+    for product in products:
+        try:
+            product_row = ProductRowB24(portal, product.product_id_b24)
+            product_in_catalog = ProductInCatalogB24(
+                portal, product_row.id_in_catalog)
+        except RuntimeError as ex:
+            return JsonResponse({'result': 'error',
+                                 'info': str(ex.args[0]) + str(ex.args[1])})
+
+        name = product.name_for_print
+        section_id = product_in_catalog.properties.get('iblockSectionId')
+
+        try:
+            filter_for_list = {settings_portal.real_section_code: section_id}
+            elements_section_list = section_list.get_element_filter(
+                filter_for_list)
+        except RuntimeError:
+            result_text += (f'Для товара {name} Невозможно получить секции '
+                            f'каталога для сопоставления\n')
+            continue
+        if not elements_section_list:
+            new_section_id = settings_portal.default_section_id
+        else:
+            new_section_id = list(elements_section_list[0].get(
+                settings_portal.copy_section_code).values())[0]
+
+        is_auto_article = product_in_catalog.properties.get(
+            settings_portal.is_auto_article_code)
+        article = product_in_catalog.properties.get(
+            settings_portal.article_code)
+        section_number = product_in_catalog.properties.get(
+            settings_portal.section_number_code)
+        if not section_number or 'value' not in section_number:
+            result_text += (f'Для товара {name} Номер раздела '
+                            f'не присвоен\n')
+            continue
+        section_number = product_in_catalog.properties.get(
+            settings_portal.section_number_code).get('value')
+        if is_auto_article == 'N':
+            result_text += (f'Для товара {name} Присваивать артикул '
+                            f'автоматически выключено\n')
+            continue
+        if article:
+            result_text += f'Для товара {name} артикул уже существует\n'
+            continue
+
+        last_number_in_year += 1
+        kp_number = last_kp_number + 1
+        article = 'ПТ{}.{}{:06}{:02}'.format(section_number, year_code,
+                                             last_number_in_year, kp_number)
+        new_name = f"{product.name_for_print} ( {article} )"
+
+        if product.is_change_equivalent:
+            product_in_catalog.properties[
+                settings_portal.equivalent_code] = str(product.equivalent)
+
+        product_in_catalog.properties['name'] = new_name
+        product_in_catalog.properties['iblockSectionId'] = new_section_id
+        product_in_catalog.properties['createdBy'] = (
+            settings_portal.responsible_id_copy_catalog)
+        product_in_catalog.properties['purchasingPrice'] = None
+        product_in_catalog.properties['purchasingCurrency'] = 'RUB'
+        product_in_catalog.properties[settings_portal.article_code] = article
+        product_in_catalog.properties[
+            settings_portal.is_auto_article_code] = {}
+        product_in_catalog.properties[
+            settings_portal.is_auto_article_code]['value'] = 'Y'
+        factory_number_code = ''.join(
+            settings_portal.factory_number_code.split('_')).lower()
+        product_in_catalog.properties[factory_number_code] = {}
+        product_in_catalog.properties[factory_number_code]['value'] = 'Y'
+        del product_in_catalog.properties['id']
+        try:
+            new_id_product_in_catalog = product_in_catalog.add().get(
+                'element').get('id')
+            product_row.properties['productId'] = new_id_product_in_catalog
+            product_row.properties['productName'] = new_name
+            del product_row.properties['id']
+            result = product_row.update(product.product_id_b24)
+        except RuntimeError as ex:
+            return JsonResponse({'result': 'error',
+                                 'info': f'{ex.args[0]} {ex.args[1]}'})
+        result_text += f'Для товара {name} артикул присвоен {article}\n'
+
+        prodtime = ProdTimeQuote.objects.get(portal=portal,
+                                             product_id_b24=product_row.id)
+        prodtime.name_for_print = new_name
+        prodtime.save()
+
+    numeric.last_number = last_number_in_year
+    numeric.save()
+    return JsonResponse({'result': 'success', 'info': result_text})
 
 
 @xframe_options_exempt
@@ -357,9 +502,10 @@ def copy_products(request):
             productrow = ProductRowB24(portal, product.product_id_b24)
             product_in_catalog = ProductB24(portal, productrow.id_in_catalog)
             section_id = product_in_catalog.properties.get('SECTION_ID')
+            filter_for_list = {settings_portal.real_section_code: section_id}
             element_list = ListB24(
-                portal, settings_portal.section_list_id).get_element_by_filter(
-                section_id, settings_portal.real_section_code)
+                portal, settings_portal.section_list_id).get_element_filter(
+                filter_for_list)
             if not element_list:
                 new_section_id = settings_portal.default_section_id
             else:
@@ -410,9 +556,11 @@ def send_equivalent(request):
 
     sum_equivalent = ProdTimeQuote.objects.filter(
         portal=portal, quote_id=quote_id).aggregate(Sum('equivalent_count'))
-    sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
-    deal = DealB24(portal, deal_id)
-    deal.send_equivalent(settings_portal.sum_equivalent_code, sum_equivalent)
+    if sum_equivalent['equivalent_count__sum']:
+        sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
+        deal = DealB24(portal, deal_id)
+        deal.send_equivalent(settings_portal.sum_equivalent_code,
+                             sum_equivalent)
 
     return JsonResponse({'result': sum_equivalent})
 
@@ -480,8 +628,10 @@ def send_products(request):
 
     sum_equivalent = ProdTimeDeal.objects.filter(
         portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
-    sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
-    deal.send_equivalent(settings_portal.sum_equivalent_code, sum_equivalent)
+    if sum_equivalent['equivalent_count__sum']:
+        sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
+        deal.send_equivalent(settings_portal.sum_equivalent_code,
+                             sum_equivalent)
 
     return JsonResponse({'result': 'ok'})
 
@@ -545,12 +695,14 @@ def export_excel(request):
 
     for product in products:
         row_num += 1
+        prod_time = (product.prod_time.strftime('%d.%m.%Y') if
+                     product.prod_time else '')
 
         row = [
             product.name,
             product.quantity,
             product.count_days,
-            product.prod_time.strftime('%d.%m.%Y'),
+            prod_time,
         ]
 
         for col_num, cell_value in enumerate(row, 1):

@@ -256,6 +256,16 @@ class ProductRowB24(ObjB24):
             }
         ))
 
+    def update_new(self, fields):
+        """Метод изменения товарной позиции."""
+        return self._check_error(self.bx24.call(
+            'crm.item.productrow.update',
+            {
+                'id': self.id,
+                'fields': fields
+            }
+        ))
+
     def add(self, fields):
         """Метод добавления товарной позиции."""
         return self._check_error(self.bx24.call(

@@ -13,7 +13,6 @@ urlpatterns = [
          name='write-factory-number'),
     path('update-factory-number/', views.update_factory_number,
          name='update-factory-number'),
-    path('create-articles/', views.create_articles, name='create-articles'),
     path('send-equivalent/', views.send_equivalent, name='send-equivalent'),
     path('export-excel/', views.export_excel, name='export-excel'),
 ]

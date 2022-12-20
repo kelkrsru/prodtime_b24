@@ -23,7 +23,7 @@
           <a href="{% url 'quotecard:index' %}?member_id={{ member_id }}&quote_id={{ quote_id }}" class="btn btn-outline-success ms-3">Обновить данные из предложения</a>
           <label for="show-all">Показывать все поля</label>
           <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
-          <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
+          <button class="btn btn-outline-primary me-3" onclick="CreateArticles()">Сформировать документ по шаблону</button>
           <select class="form-select me-3 w-25" id="select-template" >
             {% for item in templates %}
               <option value="{{ item.id }}">{{ item.name }}</option>
@@ -32,9 +32,7 @@
         </div>
         <div class="d-flex flex-row-reverse align-items-center mt-3">
           <a href="{% url 'quotecard:export-excel' %}?member_id={{ member_id }}&quote_id={{ quote_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
-          <button class="btn btn-outline-primary me-3" onclick="copyProducts()">Копировать товары в каталог и предложение</button>
-{#          <button class="btn btn-outline-primary me-3" onclick="sendEquivalent()">Передать суммарный эквивалент в сделку</button>#}
-          <button class="btn btn-outline-info me-3" onclick="sendProductsToDeal()">Передать товары в сделку</button>
+          <button class="btn btn-outline-primary me-3" onclick="sendProductsToDeal()">Передать товары в сделку</button>
         </div>
       </div>
     </div>
@@ -93,13 +91,6 @@
         {% endif %}
       </tbody>
     </table>
-  </div>
-  <div class="container mt-3">
-    <div class="row">
-      <div class="d-flex flex-row-reverse align-items-center mt-3">
-        <button class="btn btn-danger me-3 btn-lg" onclick="CreateArticles()">Тестовая кнопка. Не нажимать!</button>
-      </div>
-    </div>
   </div>
 {% endblock %}
 {% block user_scripts %}

@@ -25,12 +25,6 @@
               <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
               <label for="show-all">Показывать все поля</label>
               <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
-              <button class="btn btn-outline-primary me-3" onclick="createDoc()">Сформировать документ по шаблону</button>
-              <select class="form-select me-3 w-25" id="select-template" >
-                {% for item in templates %}
-                  <option value="{{ item.id }}">{{ item.name }}</option>
-                {% endfor %}
-              </select>
             </div>
             <div class="d-flex flex-row-reverse align-items-center mt-3">
               <a href="{% url 'dealcard:export-excel' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
@@ -69,8 +63,8 @@
           <th scope="col" width="10%" id="prod-time">Срок производства</th>
           <th scope="col" width="8%" id="factory-number">Зав. номер</th>
           <th scope="col" width="3%" id="edit-number">Изменить номер</th>
-          <th scope="col" width="3%" id="finish">Выпуск</th>
           <th scope="col" width="3%" id="made">Готово</th>
+          <th scope="col" width="3%" id="finish">Выпуск</th>
         </tr>
       </thead>
       <tbody>
@@ -105,15 +99,15 @@
                          name="factory-number-1" value="Не задан" readonly disabled></td> {# Заводской номер #}
                 <td data-id="{{ product.id }}"><button class="btn btn-outline-info" disabled>🔢</button></td> {# Изменить заводской номер #}
               {% endif %}
-              {% if product.finish == True %}
-                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox" checked></td> {# Выпуск изделия #}
-              {% else %}
-                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox"></td> {# Выпуск изделия #}
-              {% endif %}
               {% if product.made == True %}
                 <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input made-check-input" type="checkbox" checked></td> {# Готовность изделия #}
               {% else %}
                 <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input made-check-input" type="checkbox"></td> {# Готовность изделия #}
+              {% endif %}
+              {% if product.finish == True %}
+                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox" checked></td> {# Выпуск изделия #}
+              {% else %}
+                <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input finish-check-input" type="checkbox"></td> {# Выпуск изделия #}
               {% endif %}
             </tr>
           {% endfor %}
@@ -128,8 +122,9 @@
   <div class="container mt-3">
     <div class="row">
       <div class="d-flex flex-row-reverse align-items-center mt-3">
-        <button class="btn btn-outline-primary me-3 btn-lg" onclick="ProductsFinish()">Изделие выпущено</button>
-        <button class="btn btn-danger me-3 btn-lg" onclick="CreateArticles()">Тестовая кнопка. Не нажимать!</button>
+        <button class="btn btn-outline-primary btn-lg" onclick="ProductsFinish()">Изделие выпущено</button>
+        <button class="btn btn-outline-primary me-3 btn-lg" title="Выбрать все" onclick="CheckAll()">✅</button>
+        <button class="btn btn-outline-primary me-3 btn-lg" title="Снять все" onclick="NoCheckAll()">❎</button>
       </div>
     </div>
   </div>
@@ -309,6 +304,22 @@
             });
     }
 
+    function CheckAll() {
+        const elements = document.getElementsByClassName('finish-check-input');
+        const elementsList = Array.prototype.slice.call(elements);
+        elementsList.forEach(function (item, i, arr) {
+            item.checked = true;
+        });
+    }
+
+    function NoCheckAll() {
+        const elements = document.getElementsByClassName('finish-check-input');
+        const elementsList = Array.prototype.slice.call(elements);
+        elementsList.forEach(function (item, i, arr) {
+            item.checked = false;
+        });
+    }
+
     function WriteFactoryNumbers() {
         document.getElementById("div-loader").style.display = "block";
         $.ajax({
@@ -327,10 +338,10 @@
             });
     }
 
-    function CreateArticles() {
+    function copyProducts() {
         document.getElementById("div-loader").style.display = "block";
         $.ajax({
-            url: "{% url 'dealcard:create-articles' %}",
+            url: "{% url 'dealcard:copy-products' %}",
             type: "POST",
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
@@ -342,43 +353,6 @@
             .fail(function () {
                 document.getElementById("div-loader").style.display = "none";
                 alert('Ошибка при создании заводских номеров');
-            });
-    }
-
-    function createDoc() {
-        const select = document.getElementById("select-template");
-        const select_value = select.value;
-        $.ajax({
-            url: "{% url 'dealcard:create-doc' %}",
-            type: "POST",
-            data: {templ_id: select_value, member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
-        })
-            .done(function (response) {
-                console.log(response.result);
-                alert('Документ успешно создан в сделке');
-            })
-            .fail(function () {
-                alert('Ошибка создания документа в сделке');
-            });
-    }
-
-    function copyProducts() {
-        $.ajax({
-            url: "{% url 'dealcard:copy-products' %}",
-            type: "POST",
-            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
-        })
-            .done(function (response) {
-                if(response.result === 'ok'){
-                    alert('Товары успешно созданы в каталоге и обновлены в сделке');
-                }
-                else if(response.result === 'error'){
-                    alert('Нет товаров для копирования, так как они ' +
-                        'идентичны существующим.');
-                }
-            })
-            .fail(function () {
-                alert('Ошибка копирования товаров');
             });
     }
 

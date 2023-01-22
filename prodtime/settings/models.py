@@ -170,6 +170,13 @@ class SettingsPortal(models.Model):
         default='property85',
         max_length=30,
     )
+    service_code = models.CharField(
+        verbose_name='Код свойства Услуга',
+        help_text='Код свойства Услуга в каталоге товаров. Код, '
+                  'который отдает метод "catalog.product.get"',
+        default='property87',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

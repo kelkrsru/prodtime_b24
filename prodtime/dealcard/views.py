@@ -542,6 +542,8 @@ def copy_products(request):
 
         name = product.name_for_print
         section_id = product_in_catalog.properties.get('iblockSectionId')
+        service = product_in_catalog.properties.get(
+            settings_portal.service_code)
 
         try:
             filter_for_list = {settings_portal.real_section_code: section_id}
@@ -563,28 +565,33 @@ def copy_products(request):
             settings_portal.article_code)
         section_number = product_in_catalog.properties.get(
             settings_portal.section_number_code)
-        if not section_number or 'value' not in section_number:
-            result_text += (f'Для товара {name} Номер раздела '
-                            f'не присвоен\n')
-            continue
-        section_number = product_in_catalog.properties.get(
-            settings_portal.section_number_code).get('value')
-        if is_auto_article == 'N':
-            result_text += (f'Для товара {name} Присваивать артикул '
-                            f'автоматически выключено\n')
-            continue
-        if article:
-            result_text += f'Для товара {name} артикул уже существует\n'
-            continue
+        if service == 'Y':
+            new_name = product.name_for_print
+        else:
+            if is_auto_article == 'N':
+                result_text += (f'Для товара {name} Присваивать артикул '
+                                f'автоматически выключено\n')
+                continue
+            if not section_number or 'value' not in section_number:
+                result_text += (f'Для товара {name} Номер раздела '
+                                f'не присвоен\n')
+                continue
+            section_number = product_in_catalog.properties.get(
+                settings_portal.section_number_code).get('value')
+            if article:
+                result_text += f'Для товара {name} артикул уже существует\n'
+                continue
 
-        last_number_in_year += 1
-        article = 'ПТ{}.{}{:06}{}'.format(section_number, year_code,
-                                          last_number_in_year, '00')
-        new_name = f"{product.name_for_print} ( {article} )"
+            last_number_in_year += 1
+            article = 'ПТ{}.{}{:06}{}'.format(section_number, year_code,
+                                              last_number_in_year, '00')
+            new_name = f"{product.name_for_print} ( {article} )"
 
+        equivalent_code = ''.join(
+            settings_portal.equivalent_code.split('_')).lower()
         if product.is_change_equivalent:
             product_in_catalog.properties[
-                settings_portal.equivalent_code] = str(product.equivalent)
+                equivalent_code] = str(product.equivalent)
 
         product_in_catalog.properties['name'] = new_name
         product_in_catalog.properties['iblockSectionId'] = new_section_id
@@ -592,15 +599,26 @@ def copy_products(request):
             settings_portal.responsible_id_copy_catalog)
         product_in_catalog.properties['purchasingPrice'] = None
         product_in_catalog.properties['purchasingCurrency'] = 'RUB'
-        product_in_catalog.properties[settings_portal.article_code] = article
-        product_in_catalog.properties[
-            settings_portal.is_auto_article_code] = {}
-        product_in_catalog.properties[
-            settings_portal.is_auto_article_code]['value'] = 'Y'
         factory_number_code = ''.join(
             settings_portal.factory_number_code.split('_')).lower()
         product_in_catalog.properties[factory_number_code] = {}
         product_in_catalog.properties[factory_number_code]['value'] = 'Y'
+        product_in_catalog.properties[
+            settings_portal.is_auto_article_code] = {}
+        product_in_catalog.properties[
+            settings_portal.service_code] = {}
+        if service == 'Y':
+            product_in_catalog.properties[
+                settings_portal.is_auto_article_code]['value'] = 'N'
+            product_in_catalog.properties[
+                settings_portal.service_code]['value'] = 'Y'
+        else:
+            product_in_catalog.properties[
+                settings_portal.is_auto_article_code]['value'] = 'Y'
+            product_in_catalog.properties[
+                settings_portal.service_code]['value'] = 'N'
+            product_in_catalog.properties[
+                settings_portal.article_code] = article
         del product_in_catalog.properties['id']
         try:
             new_id_product_in_catalog = product_in_catalog.add().get(
@@ -612,7 +630,10 @@ def copy_products(request):
         except RuntimeError as ex:
             return JsonResponse({'result': 'error',
                                  'info': f'{ex.args[0]} {ex.args[1]}'})
-        result_text += f'Для товара {name} артикул присвоен {article}\n'
+        if service == 'Y':
+            result_text += f'Товар {name} скопирован как услуга\n'
+        else:
+            result_text += f'Для товара {name} артикул присвоен {article}\n'
 
         prodtime = ProdTimeDeal.objects.get(portal=portal,
                                             product_id_b24=product_row.id)
@@ -869,7 +890,7 @@ def export_excel(request):
                      product.prod_time else '')
 
         row = [
-            product.name,
+            product.name_for_print,
             product.quantity,
             product.count_days,
             prod_time,

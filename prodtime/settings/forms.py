@@ -40,4 +40,4 @@ class SettingsArticlesPortalForm(forms.ModelForm):
     class Meta:
         model = SettingsPortal
         fields = ('is_auto_article_code', 'article_code',
-                  'section_number_code')
+                  'section_number_code', 'service_code')

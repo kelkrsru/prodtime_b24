@@ -177,6 +177,13 @@ class SettingsPortal(models.Model):
         default='property87',
         max_length=30,
     )
+    prodtime_str_code = models.CharField(
+        verbose_name='Код свойства Срок производства',
+        help_text='Код свойства Срок производства в каталоге товаров. Код, '
+                  'который отдает метод "crm.product.get"',
+        default='property88',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

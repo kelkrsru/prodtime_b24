@@ -190,6 +190,35 @@ def index(request):
             prodtime.equivalent_count = (prodtime.equivalent *
                                          prodtime.quantity)
             prodtime.save()
+
+        # Работа со сроком производства
+        if prodtime.is_change_prodtime_str:
+            product_value['prodtime_str'] = prodtime.prodtime_str
+        else:
+            try:
+                if product["PRODUCT_ID"] == 0:
+                    raise RuntimeError('Product not catalog',
+                                       'Product not catalog')
+                product_in_catalog = ProductB24(portal, product["PRODUCT_ID"])
+            except RuntimeError as ex:
+                return render(request, 'error.html', {
+                    'error_name': ex.args[0],
+                    'error_description': f'{ex.args[1]} для товара '
+                                         f'{prodtime.name}'
+                })
+            prodtime_str_code = settings_portal.prodtime_str_code
+            if (not product_in_catalog.properties
+                    or prodtime_str_code not in product_in_catalog.properties
+                    or not product_in_catalog.properties.get(
+                        prodtime_str_code)):
+                product_value['prodtime_str'] = ''
+                prodtime.prodtime_str = ''
+            else:
+                product_value['prodtime_str'] = list(
+                    product_in_catalog.properties.get(
+                        prodtime_str_code).values())[1]
+                prodtime.prodtime_str = product_value['prodtime_str']
+            prodtime.save()
         products.append(product_value)
 
     products_in_db = ProdTimeQuote.objects.filter(portal=portal,
@@ -232,6 +261,10 @@ def save(request):
         prodtime.prod_time = value
     if type_field == 'count-days' and value:
         prodtime.count_days = value
+    if type_field == 'prodtime-str':
+        if value:
+            prodtime.prodtime_str = value
+            prodtime.is_change_prodtime_str = True
     if type_field == 'equivalent':
         if value:
             prodtime.equivalent = value
@@ -549,6 +582,12 @@ def copy_products(request):
                     settings_portal.equivalent_code] = {}
                 product_in_catalog.properties[settings_portal.equivalent_code][
                     'value'] = str(product.equivalent)
+            if product.is_change_prodtime_str:
+                product_in_catalog.properties[
+                    settings_portal.prodtime_str_code] = {}
+                product_in_catalog.properties[
+                    settings_portal.prodtime_str_code]['value'] = str(
+                    product.prodtime_str)
             product_in_catalog.properties['NAME'] = product.name_for_print
             product_in_catalog.properties['SECTION_ID'] = new_section_id
             product_in_catalog.properties['CREATED_BY'] = (

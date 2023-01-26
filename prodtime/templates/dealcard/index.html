@@ -47,9 +47,9 @@
         <tr>
           <th scope="col" width="3%" id="num">#</th>
           <th scope="col" width="15%" id="prod">Товар</th>
-          <th scope="col" width="12%" id="print-form">В печатную форму</th>
-          <th scope="col" width="8%" id="price">Цена, руб.</th>
-          <th scope="col" width="5%" id="count">Кол-во</th>
+          <th scope="col" width="15%" id="print-form">В печатную форму</th>
+          <th scope="col" width="10%" id="price">Цена, руб.</th>
+          <th scope="col" width="8%" id="count">Кол-во</th>
           <th scope="col" width="5%" id="unit">Ед. изм.</th>
 
           <th scope="col" id="bonus" class="td-hidden">Скидка, %</th>
@@ -58,7 +58,7 @@
           <th scope="col" id="tax-sum" class="td-hidden">Сумма налога, руб.</th>
 
           <th scope="col" width="9%" id="sum">Сумма, руб.</th>
-          <th scope="col" width="8%" id="count-days">Кол-во раб. дней</th>
+{#          <th scope="col" width="8%" id="count-days">Кол-во раб. дней</th>#}
           <th scope="col" width="8%" id="equivalent">Экв-нт за 1 ед.</th>
           <th scope="col" width="10%" id="prod-time">Срок производства</th>
           <th scope="col" width="8%" id="factory-number">Зав. номер</th>
@@ -84,8 +84,8 @@
               <td class="td-hidden">{{ product.tax_sum }}</td> {# Сумма налога #}
 
               <td>{{ product.sum }}</td> {# Общая стоимость с налогом и скидкой #}
-              <td data-id="{{ product.id }}"><input class="form-control number-input" type="number" name="count-days-1"
-                           value="{{ product.count_days }}"></td> {# Количество рабочих дней #}
+{#              <td data-id="{{ product.id }}"><input class="form-control number-input" type="number" name="count-days-1"#}
+{#                           value="{{ product.count_days }}"></td> {# Количество рабочих дней #}
               <td data-id="{{ product.id }}"><input class="form-control equivalent-input" type="number" name="equivalent-1"
                            value="{{ product.equivalent }}"></td> {# Эквивалент #}
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"

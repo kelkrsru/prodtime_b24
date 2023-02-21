@@ -4,7 +4,7 @@ import json
 
 from typing import Dict, Any
 
-from django.db.models import Sum
+from django.db.models import Sum, Max
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -258,7 +258,7 @@ def save(request):
     if type_field == 'name-for-print':
         prodtime.name_for_print = value
     if type_field == 'prod-time':
-        prodtime.prod_time = value
+        prodtime.prod_time = value if value else None
     if type_field == 'count-days' and value:
         prodtime.count_days = value
     if type_field == 'prodtime-str':
@@ -543,7 +543,30 @@ def create_articles(request):
 
     numeric.last_number = last_number_in_year
     numeric.save()
+
+    # Max prodtime
+    products_for_max = ProdTimeQuote.objects.filter(
+        portal=portal, quote_id=quote_id, prod_time__isnull=False)
+    if products_for_max:
+        max_prodtime = products_for_max.aggregate(Max('prod_time')).get(
+            'prod_time__max')
+
     return JsonResponse({'result': 'success', 'info': result_text})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def test_max_prodtime(request):
+    """Метод"""
+    member_id = request.POST.get('member_id')
+    quote_id = int(request.POST.get('quote_id'))
+    portal: Portals = _create_portal(member_id)
+
+    products = ProdTimeQuote.objects.filter(portal=portal,
+                                            quote_id=quote_id)
+    max_prodtime = products.aggregate(Max('prod_time'))
+    return JsonResponse(
+        {'result': 'success', 'info': max_prodtime.get('prod_time__max')})
 
 
 @xframe_options_exempt

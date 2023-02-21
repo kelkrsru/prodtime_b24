@@ -33,6 +33,7 @@
         <div class="d-flex flex-row-reverse align-items-center mt-3">
           <a href="{% url 'quotecard:export-excel' %}?member_id={{ member_id }}&quote_id={{ quote_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
           <button class="btn btn-outline-primary me-3" onclick="sendProductsToDeal()">Передать товары в сделку</button>
+{#          <button class="btn btn-outline-primary me-3" onclick="TestMax()">Тестовая кнопка. Не нажимать</button>#}
         </div>
       </div>
     </div>
@@ -186,6 +187,20 @@
             .fail(function () {
                 document.getElementById("div-loader").style.display = "none";
                 alert('Ошибка при создании артикулов');
+            });
+    }
+
+    function TestMax() {
+        $.ajax({
+            url: "{% url 'quotecard:test-max' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", quote_id: "{{ quote_id }}"},
+        })
+            .done(function (response) {
+                alert(response.info);
+            })
+            .fail(function () {
+                alert('Ошибка');
             });
     }
 

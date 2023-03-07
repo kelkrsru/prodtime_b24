@@ -15,7 +15,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
 from core.bitrix24.bitrix24 import ProductB24, DealB24, ProductRowB24, \
-    SmartProcessB24, CompanyB24, ProductInCatalogB24, ListB24
+    SmartProcessB24, CompanyB24, ProductInCatalogB24, ListB24, UserB24
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
@@ -29,10 +29,14 @@ def index(request):
     """Метод страницы Карточка сделки."""
     template: str = 'dealcard/index.html'
     title: str = 'Страница карточки сделки'
+    auth_id: str = ''
+    user_id = 0
 
     if request.method == 'POST':
         member_id: str = request.POST['member_id']
         deal_id: int = int(json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
+        if 'AUTH_ID' in request.POST:
+            auth_id: str = request.POST.get('AUTH_ID')
     elif request.method == 'GET':
         member_id: str = request.GET.get('member_id')
         deal_id: int = int(request.GET.get('deal_id'))
@@ -43,6 +47,16 @@ def index(request):
         })
 
     portal: Portals = _create_portal(member_id)
+
+    if auth_id:
+        bx24_for_user = Bitrix24(portal.name)
+        bx24_for_user._access_token = auth_id
+        user_result = bx24_for_user.call('user.current')
+        if 'result' in user_result:
+            user_id = user_result.get('result').get('ID')
+    elif 'user_id' in request.COOKIES:
+        user_id = request.COOKIES.get('user_id')
+
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
     Numeric.objects.get_or_create(portal=portal,
@@ -72,6 +86,19 @@ def index(request):
 
     products = []
     for product in bx24_deal.deal_products:
+        # Проверка, что товар является товаром каталога
+        try:
+            if not product['PRODUCT_ID'] or int(product['PRODUCT_ID']) <= 0:
+                raise RuntimeError('Error', 'Product not found')
+            product_in_catalog = ProductInCatalogB24(
+                portal, int(product['PRODUCT_ID']))
+        except RuntimeError as ex:
+            return render(request, 'error.html', {
+                'error_name': ex.args[1],
+                'error_description': f'Товар {product["PRODUCT_NAME"]} '
+                                     f'не найден в каталоге товаров Битрикс24'
+            })
+
         product_value: Dict[str, Any] = {
             'product_id_b24': int(product['ID']),
             'name': product['PRODUCT_NAME'],
@@ -155,6 +182,24 @@ def index(request):
             )
             product_value['id'] = prodtime.pk
 
+        # Работа с прямыми затратами, нормочасами и материалами
+        name_fields = ['direct_costs', 'standard_hours', 'materials']
+        for name_field in name_fields:
+            if getattr(prodtime, 'is_change_' + name_field):
+                product_value[name_field] = (str(getattr(prodtime, name_field))
+                                             .replace(',', '.'))
+            else:
+                code_field = getattr(settings_portal, name_field + '_str_code')
+                value_field = product_in_catalog.properties.get(code_field)
+                if type(value_field) is dict and 'value' in value_field:
+                    value = round(decimal.Decimal(value_field.get('value')), 2)
+                    product_value[name_field] = str(value)
+                    setattr(prodtime, name_field, value)
+                else:
+                    product_value[name_field] = ''
+                    setattr(prodtime, name_field, 0)
+                prodtime.save()
+
         # Работа с эквивалентом
         if prodtime.is_change_equivalent:
             product_value['equivalent'] = str(prodtime.equivalent).replace(
@@ -170,8 +215,7 @@ def index(request):
                                          f'{prodtime.name}'
                 })
             equivalent_code = settings_portal.equivalent_code
-            if (not product_in_catalog.props
-                    or equivalent_code not in product_in_catalog.props
+            if (equivalent_code not in product_in_catalog.props
                     or not product_in_catalog.props.get(equivalent_code)):
                 product_value['equivalent'] = ''
                 prodtime.equivalent = 0
@@ -201,6 +245,16 @@ def index(request):
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
+    user = UserB24(portal, int(user_id))
+    # print('****************************************************************')
+    # print(user.properties)
+    # print('****************************************************************')
+    user_info = {
+        'name': user.properties[0].get('NAME'),
+        'lastname': user.properties[0].get('LAST_NAME'),
+        'photo': user.properties[0].get('PERSONAL_PHOTO')
+    }
+
     context = {
         'title': title,
         'products': products,
@@ -209,8 +263,12 @@ def index(request):
         'deal_id': deal_id,
         #'templates': templates,
         'deal': deal,
+        'user': user_info
     }
-    return render(request, template, context)
+    response = render(request, template, context)
+    if auth_id:
+        response.set_cookie(key='user_id', value=user_id)
+    return response
 
 
 @xframe_options_exempt
@@ -241,6 +299,18 @@ def save(request):
             prodtime.equivalent_count = (decimal.Decimal(value)
                                          * prodtime.quantity)
             prodtime.is_change_equivalent = True
+    if type_field == 'direct-costs':
+        if value:
+            prodtime.direct_costs = value
+            prodtime.is_change_direct_costs = True
+    if type_field == 'standard-hours':
+        if value:
+            prodtime.standard_hours = value
+            prodtime.is_change_standard_hours = True
+    if type_field == 'materials':
+        if value:
+            prodtime.materials = value
+            prodtime.is_change_materials = True
     if type_field == 'finish':
         if value == 'true':
             prodtime.finish = True
@@ -387,6 +457,48 @@ def create(request):
     return JsonResponse({
         'result': 'dealandtask',
         "info": 'Сделка и задача созданы успешно.'
+    })
+
+
+@xframe_options_exempt
+@csrf_exempt
+def update_direct_costs(request):
+    """Метод обновления полей Прямые затраты, Нормочасы, Материалы."""
+    name_fields = ['direct_costs', 'standard_hours', 'materials']
+
+    member_id = request.POST.get('member_id')
+    deal_id = int(request.POST.get('deal_id'))
+    portal: Portals = _create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
+                                                        portal=portal)
+
+    products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
+    if not products:
+        return JsonResponse({
+            'result': 'error',
+            "info": 'В сделке отсутствуют товары.'
+        })
+
+    for product in products:
+        productrow_in_deal = ProductRowB24(portal, product.product_id_b24)
+        product_in_catalog = ProductInCatalogB24(
+            portal, productrow_in_deal.id_in_catalog)
+
+        for name_field in name_fields:
+            code_field = getattr(settings_portal, name_field + '_str_code')
+            value_field = product_in_catalog.properties.get(code_field)
+            if type(value_field) is dict and 'value' in value_field:
+                value = round(decimal.Decimal(value_field.get('value')), 2)
+                setattr(product, name_field, value)
+            else:
+                setattr(product, name_field, 0)
+            setattr(product, 'is_change_' + name_field, False)
+        product.save()
+
+    return JsonResponse({
+        'result': 'success',
+        "info": 'Значения полей успешно обновлены из каталога товаров '
+                'Битрикс24.'
     })
 
 
@@ -586,6 +698,13 @@ def copy_products(request):
             article = 'ПТ{}.{}{:06}{}'.format(section_number, year_code,
                                               last_number_in_year, '00')
             new_name = f"{product.name_for_print} ( {article} )"
+
+        name_fields = ['direct_costs', 'standard_hours', 'materials']
+        for name_field in name_fields:
+            code_field = getattr(settings_portal, name_field + '_str_code')
+            if getattr(product, 'is_change_' + name_field):
+                product_in_catalog.properties[code_field] = str(getattr(
+                    product, name_field))
 
         equivalent_code = ''.join(
             settings_portal.equivalent_code.split('_')).lower()
@@ -862,7 +981,10 @@ def export_excel(request):
         'Кол-во',
         'Кол-во раб. дней',
         'Срок производства',
-        'Заводской номер'
+        'Заводской номер',
+        'Нормочасы за 1 ед',
+        'Материалы за 1 ед без НДС',
+        'Прямые затраты за 1 ед без НДС'
     ]
 
     worksheet.merge_cells('B1:D1')
@@ -879,6 +1001,9 @@ def export_excel(request):
     worksheet.column_dimensions['C'].width = 17
     worksheet.column_dimensions['D'].width = 20
     worksheet.column_dimensions['E'].width = 20
+    worksheet.column_dimensions['F'].width = 15
+    worksheet.column_dimensions['G'].width = 15
+    worksheet.column_dimensions['H'].width = 15
 
     for col_num, column_title in enumerate(columns, 1):
         cell = worksheet.cell(row=row_num, column=col_num)
@@ -895,6 +1020,9 @@ def export_excel(request):
             product.count_days,
             prod_time,
             product.factory_number,
+            product.standard_hours,
+            product.materials,
+            product.direct_costs,
         ]
 
         for col_num, cell_value in enumerate(row, 1):

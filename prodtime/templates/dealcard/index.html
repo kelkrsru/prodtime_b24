@@ -1,12 +1,14 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
 {% block title %}Карточка сделки{% endblock %}
 {% block content %}
+  {% include 'includes/modals.html' %}
   <div id="div-loader" style="width: 100%; height: 100%; opacity: 0.5; position: fixed; background: #bacbe6; z-index: 100; text-align: center; display: none">
     {% load static %}
     <img src="{% static 'img/loading.gif' %}" alt="loading gif">
   </div>
-  <div class="container mt-5">
+  <div class="container-fluid mt-5">
     <div class="card bg-light">
       <div class="card-body">
         <div class="row">
@@ -22,6 +24,7 @@
           </div>
           <div class="col-10">
             <div class="d-flex flex-row-reverse align-items-center">
+              <button class="btn btn-outline-warning ms-3" id="btn-update-costs">Обновить прямые затраты</button>
               <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
               <label for="show-all">Показывать все поля</label>
               <input class="form-check-input me-3" type="checkbox" id="show-all" onclick="showAll()">
@@ -32,7 +35,7 @@
               <button class="btn btn-outline-primary me-3" onclick="sendEquivalent()">Передать суммарный эквивалент в сделку</button>
             </div>
             <div class="row d-flex flex-row-reverse align-items-center mt-3">
-              <button class="col btn btn-outline-primary" onclick="WriteFactoryNumbers()">Установить заводские номера</button>
+              <button class="col btn btn-outline-primary me-3" onclick="WriteFactoryNumbers()">Установить заводские номера</button>
               <input class="col form-control me-3" type="text" id="general-number" value="{{ deal.general_number }}">
               <label class="col text-end" for="general-number">Основная часть заводского номера:</label>
             </div>
@@ -41,27 +44,30 @@
       </div>
     </div>
   </div>
-  <div class="container mt-3">
+  <div class="container-fluid mt-3">
     <table class="table table-striped align-baseline" id="main-table">
       <thead>
         <tr>
           <th scope="col" width="3%" id="num">#</th>
-          <th scope="col" width="15%" id="prod">Товар</th>
-          <th scope="col" width="15%" id="print-form">В печатную форму</th>
-          <th scope="col" width="10%" id="price">Цена, руб.</th>
-          <th scope="col" width="8%" id="count">Кол-во</th>
-          <th scope="col" width="5%" id="unit">Ед. изм.</th>
+          <th scope="col" width="12%" id="prod">Товар</th>
+          <th scope="col" width="12%" id="print-form">В печатную форму</th>
+          <th scope="col" width="7%" id="price">Цена, руб.</th>
+          <th scope="col" width="4%" id="count">Кол-во</th>
+          <th scope="col" width="4%" id="unit">Ед. изм.</th>
 
           <th scope="col" id="bonus" class="td-hidden">Скидка, %</th>
           <th scope="col" id="bonus-sum" class="td-hidden">Сумма скидки, руб.</th>
           <th scope="col" id="tax" class="td-hidden">Налог, %</th>
           <th scope="col" id="tax-sum" class="td-hidden">Сумма налога, руб.</th>
 
-          <th scope="col" width="9%" id="sum">Сумма, руб.</th>
+          <th scope="col" width="7%" id="sum">Сумма, руб.</th>
 {#          <th scope="col" width="8%" id="count-days">Кол-во раб. дней</th>#}
-          <th scope="col" width="8%" id="equivalent">Экв-нт за 1 ед.</th>
-          <th scope="col" width="10%" id="prod-time">Срок производства</th>
-          <th scope="col" width="8%" id="factory-number">Зав. номер</th>
+          <th scope="col" width="6%" id="equivalent">Экв-нт за 1 ед.</th>
+          <th scope="col" width="7%" id="prod-time">Срок производства</th>
+          <th scope="col" width="8%" id="direct-costs">Прямые затраты за 1 ед без НДС</th>
+          <th scope="col" width="6%" id="standard-hours">Нормочасы за 1 ед</th>
+          <th scope="col" width="8%" id="materials">Материалы за 1 ед без НДС</th>
+          <th scope="col" width="7%" id="factory-number">Зав. номер</th>
           <th scope="col" width="3%" id="edit-number">Изменить номер</th>
           <th scope="col" width="3%" id="made">Готово</th>
           <th scope="col" width="3%" id="finish">Выпуск</th>
@@ -90,6 +96,12 @@
                            value="{{ product.equivalent }}"></td> {# Эквивалент #}
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
+              <td data-id="{{ product.id }}"><input class="form-control direct-costs-input" type="number"
+                           value="{{ product.direct_costs }}"></td> {# Прямые затраты #}
+              <td data-id="{{ product.id }}"><input class="form-control standard-hours-input" type="number"
+                           value="{{ product.standard_hours }}"></td> {# Нормочасы #}
+              <td data-id="{{ product.id }}"><input class="form-control materials-input" type="number"
+                           value="{{ product.materials }}"></td> {# Материалы #}
               {% if product.factory_number %}
                 <td data-id="{{ product.id }}"><input id="{{ product.id }}" type="text" class="form-control factory-number-input"
                          name="factory-number-1" value="{{ product.factory_number }}" readonly></td> {# Заводской номер #}
@@ -119,10 +131,10 @@
       </tbody>
     </table>
   </div>
-  <div class="container mt-3">
+  <div class="container-fluid mt-3">
     <div class="row">
       <div class="d-flex flex-row-reverse align-items-center mt-3">
-        <button class="btn btn-outline-primary btn-lg" onclick="ProductsFinish()">Изделие выпущено</button>
+        <button class="btn btn-outline-primary btn-lg me-3" onclick="ProductsFinish()">Изделие выпущено</button>
         <button class="btn btn-outline-primary me-3 btn-lg" title="Выбрать все" onclick="CheckAll()">✅</button>
         <button class="btn btn-outline-primary me-3 btn-lg" title="Снять все" onclick="NoCheckAll()">❎</button>
       </div>
@@ -217,6 +229,60 @@
         const value = $(this).val();
         sendToServer({{ deal.pk }},value,'general-number',this);
     });
+
+    $(".direct-costs-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".direct-costs-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'direct-costs',this);
+    });
+
+    $(".standard-hours-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".standard-hours-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours',this);
+    });
+
+    $(".materials-input").focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+
+    $(".materials-input").blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'materials',this);
+    });
+
+    $("#btn-update-costs").on("click", function() {
+        const modal = new bootstrap.Modal(document.querySelector('#modal-warning'));
+        modal.show();
+    });
+
+    $("#btn-modal-save").on("click", function() {
+        $.ajax({
+            url: "{% url 'dealcard:update-direct-costs' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+            success: function (response) {
+                alert(response.info);
+                window.location.href = "{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}";
+            },
+            error: function (ex) {
+                alert('Ошибка при обновлении значений полей');
+            }
+        });
+    });
+
 
     function sendToServer(id,value,type,control) {
         $.ajax({

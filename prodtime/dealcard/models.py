@@ -9,6 +9,43 @@ class ProdTimeDeal(ProdTime):
     deal_id = models.IntegerField(
         verbose_name='ID сделки Битрикс24',
     )
+    direct_costs = models.DecimalField(
+        verbose_name='Прямые затраты',
+        help_text='Прямые затраты из свойства товара в каталоге товаров '
+                  'Битрикс24',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    is_change_direct_costs = models.BooleanField(
+        verbose_name='Ручное изменение прямых затрат',
+        default=False
+    )
+    standard_hours = models.DecimalField(
+        verbose_name='Нормочасы',
+        help_text='Нормочасы из свойства товара в каталоге товаров Битрикс24',
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    is_change_standard_hours = models.BooleanField(
+        verbose_name='Ручное изменение нормочасов',
+        default=False
+    )
+    materials = models.DecimalField(
+        verbose_name='Материалы',
+        help_text='Материалы из свойства товара в каталоге товаров Битрикс24',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    is_change_materials = models.BooleanField(
+        verbose_name='Ручное изменение материалов',
+        default=False
+    )
 
     class Meta:
         verbose_name = 'Срок производства в сделке'

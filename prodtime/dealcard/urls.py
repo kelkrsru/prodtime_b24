@@ -15,4 +15,6 @@ urlpatterns = [
          name='update-factory-number'),
     path('send-equivalent/', views.send_equivalent, name='send-equivalent'),
     path('export-excel/', views.export_excel, name='export-excel'),
+    path('update-direct-costs/', views.update_direct_costs,
+         name='update-direct-costs'),
 ]

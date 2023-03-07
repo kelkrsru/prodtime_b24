@@ -184,6 +184,27 @@ class SettingsPortal(models.Model):
         default='property88',
         max_length=30,
     )
+    direct_costs_str_code = models.CharField(
+        verbose_name='Код свойства Прямые затраты',
+        help_text='Код свойства Прямые затраты в каталоге товаров. Код, '
+                  'который отдает метод "crm.product.get"',
+        default='property00',
+        max_length=30,
+    )
+    standard_hours_str_code = models.CharField(
+        verbose_name='Код свойства Нормочасы',
+        help_text='Код свойства Нормочасы в каталоге товаров. Код, '
+                  'который отдает метод "crm.product.get"',
+        default='property00',
+        max_length=30,
+    )
+    materials_str_code = models.CharField(
+        verbose_name='Код свойства Материалы',
+        help_text='Код свойства Материалы в каталоге товаров. Код, '
+                  'который отдает метод "crm.product.get"',
+        default='property00',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

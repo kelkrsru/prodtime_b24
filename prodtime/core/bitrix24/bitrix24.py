@@ -358,3 +358,8 @@ class ListB24(ObjB24):
                 'FILTER': filter_dict,
             }
         ))
+
+
+class UserB24(ObjB24):
+    """Класс Пользователь."""
+    GET_PROPS_REST_METHOD: str = 'user.get'

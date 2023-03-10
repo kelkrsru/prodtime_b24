@@ -43,3 +43,11 @@ class SettingsArticlesPortalForm(forms.ModelForm):
                   'section_number_code', 'service_code', 'prodtime_str_code',
                   'direct_costs_str_code', 'standard_hours_str_code',
                   'materials_str_code')
+
+
+class SettingsGeneralPortalForm(forms.ModelForm):
+    """Форма Настройки портала основных настроек и прав доступа"""
+
+    class Meta:
+        model = SettingsPortal
+        fields = ('is_admin_code',)

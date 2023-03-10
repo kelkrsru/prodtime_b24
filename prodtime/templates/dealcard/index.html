@@ -96,12 +96,24 @@
                            value="{{ product.equivalent }}"></td> {# Эквивалент #}
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
-              <td data-id="{{ product.id }}"><input class="form-control direct-costs-input" type="number"
-                           value="{{ product.direct_costs }}"></td> {# Прямые затраты #}
-              <td data-id="{{ product.id }}"><input class="form-control standard-hours-input" type="number"
-                           value="{{ product.standard_hours }}"></td> {# Нормочасы #}
-              <td data-id="{{ product.id }}"><input class="form-control materials-input" type="number"
-                           value="{{ product.materials }}"></td> {# Материалы #}
+              <td data-id="{{ product.id }}">
+                <span>План</span>
+                <input class="form-control direct-costs-input" type="number" value="{{ product.direct_costs }}">
+                <span>Факт</span>
+                <input class="form-control direct-costs-fact-input" type="number" value="{{ product.direct_costs_fact }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# Прямые затраты #}
+              <td data-id="{{ product.id }}">
+                <span>План</span>
+                <input class="form-control standard-hours-input" type="number" value="{{ product.standard_hours }}">
+                <span>Факт</span>
+                <input class="form-control standard-hours-fact-input" type="number" value="{{ product.standard_hours_fact }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# Нормочасы #}
+              <td data-id="{{ product.id }}">
+                <span>План</span>
+                <input class="form-control materials-input" type="number" value="{{ product.materials }}">
+                <span>Факт</span>
+                <input class="form-control materials-fact-input" type="number" value="{{ product.materials_fact }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# Материалы #}
               {% if product.factory_number %}
                 <td data-id="{{ product.id }}"><input id="{{ product.id }}" type="text" class="form-control factory-number-input"
                          name="factory-number-1" value="{{ product.factory_number }}" readonly></td> {# Заводской номер #}
@@ -149,24 +161,26 @@
         $(name_elem).removeAttr('readonly');
     })
 
-    $(".factory-number-input").focus(function() {
+    let factory_number = $(".factory-number-input")
+    factory_number.focus(function() {
         $(this).removeClass('text-danger');
     });
-
-    $(".factory-number-input").blur(function() {
+    factory_number.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         updateFactoryNumber(td.data("id"),value,this);
     });
 
-    $(".finish-check-input").change(function() {
+    let finish_check = $(".finish-check-input")
+    finish_check.change(function() {
         const td = $(this).parent("td");
         if (this.checked === false){
             sendToServer(td.data("id"),'false','finish');
         }
     });
 
-    $(".made-check-input").change(function() {
+    let made_check = $(".made-check-input")
+    made_check.change(function() {
         const td = $(this).parent("td");
         if (this.checked === false){
             sendToServer(td.data("id"),'false','made');
@@ -176,91 +190,124 @@
         }
     });
 
-    $(".datepicker-input").focus(function() {
+    let datepicker_input = $(".datepicker-input")
+    datepicker_input.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".datepicker-input").blur(function() {
+    datepicker_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'prod-time',this);
     });
 
-    $(".number-input").focus(function() {
+    let number_input = $(".number-input")
+    number_input.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".number-input").blur(function() {
+    number_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'count-days',this);
     });
 
-    $(".equivalent-input").focus(function() {
+    let equivalent = $(".equivalent-input")
+    equivalent.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".equivalent-input").blur(function() {
+    equivalent.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'equivalent',this);
     });
 
-    $(".text-input").focus(function() {
+    let text_input = $(".text-input")
+    text_input.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".text-input").blur(function() {
+    text_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'name-for-print',this);
     });
 
-    $("#general-number").focus(function() {
+    let general_number = $("#general-number")
+    general_number.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $("#general-number").blur(function() {
+    general_number.blur(function() {
         const value = $(this).val();
         sendToServer({{ deal.pk }},value,'general-number',this);
     });
 
-    $(".direct-costs-input").focus(function() {
+    let direct_costs = $(".direct-costs-input")
+    direct_costs.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".direct-costs-input").blur(function() {
+    direct_costs.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'direct-costs',this);
     });
 
-    $(".standard-hours-input").focus(function() {
+    let direct_costs_fact = $(".direct-costs-fact-input")
+    direct_costs_fact.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
+    direct_costs_fact.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'direct-costs-fact',this);
+    });
 
-    $(".standard-hours-input").blur(function() {
+    let standard_hours = $(".standard-hours-input")
+    standard_hours.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'standard-hours',this);
     });
 
-    $(".materials-input").focus(function() {
+    let standard_hours_fact = $(".standard-hours-fact-input")
+    standard_hours_fact.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
+    standard_hours_fact.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours-fact',this);
+    });
 
-    $(".materials-input").blur(function() {
+    let materials = $(".materials-input")
+    materials.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    materials.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'materials',this);
+    });
+
+    let materials_fact = $(".materials-fact-input")
+    materials_fact.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    materials_fact.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'materials-fact',this);
     });
 
     $("#btn-update-costs").on("click", function() {
@@ -277,7 +324,7 @@
                 alert(response.info);
                 window.location.href = "{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}";
             },
-            error: function (ex) {
+            error: function() {
                 alert('Ошибка при обновлении значений полей');
             }
         });
@@ -348,7 +395,7 @@
         const elements = document.getElementsByClassName('finish-check-input');
         const elementsList = Array.prototype.slice.call(elements);
         const products_id = [];
-        elementsList.forEach(function (item, i, arr) {
+        elementsList.forEach(function (item) {
             if(item.checked === true) {
                 products_id.push(item.dataset.id);
             }
@@ -373,7 +420,7 @@
     function CheckAll() {
         const elements = document.getElementsByClassName('finish-check-input');
         const elementsList = Array.prototype.slice.call(elements);
-        elementsList.forEach(function (item, i, arr) {
+        elementsList.forEach(function (item) {
             item.checked = true;
         });
     }
@@ -381,7 +428,7 @@
     function NoCheckAll() {
         const elements = document.getElementsByClassName('finish-check-input');
         const elementsList = Array.prototype.slice.call(elements);
-        elementsList.forEach(function (item, i, arr) {
+        elementsList.forEach(function (item) {
             item.checked = false;
         });
     }

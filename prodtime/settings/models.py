@@ -205,6 +205,13 @@ class SettingsPortal(models.Model):
         default='property00',
         max_length=30,
     )
+    is_admin_code = models.CharField(
+        verbose_name='Код свойства Администратор приложения',
+        help_text='Код свойства Администратор приложения в пользователях '
+                  'Битрикс24',
+        default='UF_USR_1678006529399',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

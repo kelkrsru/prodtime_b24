@@ -137,6 +137,15 @@ def index(request):
             product_value['smart_id_factory_number'] = (
                 prodtime.smart_id_factory_number)
             product_value['factory_number'] = prodtime.factory_number
+            product_value['direct_costs_fact'] = (
+                str(prodtime.direct_costs_fact) if prodtime.direct_costs_fact
+                else '0')
+            product_value['standard_hours_fact'] = (
+                str(prodtime.standard_hours_fact) if
+                prodtime.standard_hours_fact else '0')
+            product_value['materials_fact'] = (
+                str(prodtime.materials_fact) if prodtime.materials_fact
+                else '0')
             product_value['id'] = prodtime.pk
             prodtime.name = product_value['name']
             prodtime.price = product_value['price']
@@ -252,7 +261,8 @@ def index(request):
     user_info = {
         'name': user.properties[0].get('NAME'),
         'lastname': user.properties[0].get('LAST_NAME'),
-        'photo': user.properties[0].get('PERSONAL_PHOTO')
+        'photo': user.properties[0].get('PERSONAL_PHOTO'),
+        'is_admin': user.properties[0].get(settings_portal.is_admin_code),
     }
 
     context = {
@@ -261,7 +271,6 @@ def index(request):
         'sum_equivalent': sum_equivalent,
         'member_id': member_id,
         'deal_id': deal_id,
-        #'templates': templates,
         'deal': deal,
         'user': user_info
     }
@@ -291,36 +300,39 @@ def save(request):
         prodtime.name_for_print = value
     if type_field == 'prod-time':
         prodtime.prod_time = value
-    if type_field == 'count-days' and value:
-        prodtime.count_days = value
-    if type_field == 'equivalent':
-        if value:
+    if value:
+        if type_field == 'count-days':
+            prodtime.count_days = value
+        if type_field == 'equivalent':
             prodtime.equivalent = value
             prodtime.equivalent_count = (decimal.Decimal(value)
                                          * prodtime.quantity)
             prodtime.is_change_equivalent = True
-    if type_field == 'direct-costs':
-        if value:
+        if type_field == 'direct-costs':
             prodtime.direct_costs = value
             prodtime.is_change_direct_costs = True
-    if type_field == 'standard-hours':
-        if value:
+        if type_field == 'direct-costs-fact':
+            prodtime.direct_costs_fact = value
+        if type_field == 'standard-hours':
             prodtime.standard_hours = value
             prodtime.is_change_standard_hours = True
-    if type_field == 'materials':
-        if value:
+        if type_field == 'standard-hours-fact':
+            prodtime.standard_hours_fact = value
+        if type_field == 'materials':
             prodtime.materials = value
             prodtime.is_change_materials = True
-    if type_field == 'finish':
-        if value == 'true':
-            prodtime.finish = True
-        if value == 'false':
-            prodtime.finish = False
-    if type_field == 'made':
-        if value == 'true':
-            prodtime.made = True
-        if value == 'false':
-            prodtime.made = False
+        if type_field == 'materials-fact':
+            prodtime.materials_fact = value
+        if type_field == 'finish':
+            if value == 'true':
+                prodtime.finish = True
+            if value == 'false':
+                prodtime.finish = False
+        if type_field == 'made':
+            if value == 'true':
+                prodtime.made = True
+            if value == 'false':
+                prodtime.made = False
     prodtime.save()
 
     return JsonResponse({"success": "Updated"})
@@ -982,9 +994,12 @@ def export_excel(request):
         'Кол-во раб. дней',
         'Срок производства',
         'Заводской номер',
-        'Нормочасы за 1 ед',
-        'Материалы за 1 ед без НДС',
-        'Прямые затраты за 1 ед без НДС'
+        'Нормочасы План за 1 ед',
+        'Нормочасы Факт за 1 ед',
+        'Материалы План за 1 ед без НДС',
+        'Материалы Факт за 1 ед без НДС',
+        'Прямые затраты План за 1 ед без НДС',
+        'Прямые затраты Факт за 1 ед без НДС'
     ]
 
     worksheet.merge_cells('B1:D1')
@@ -996,14 +1011,17 @@ def export_excel(request):
     worksheet.cell(2, 2).value = company_name
 
     row_num = 4
-    worksheet.column_dimensions['A'].width = 70
+    worksheet.column_dimensions['A'].width = 60
     worksheet.column_dimensions['B'].width = 10
     worksheet.column_dimensions['C'].width = 17
-    worksheet.column_dimensions['D'].width = 20
-    worksheet.column_dimensions['E'].width = 20
-    worksheet.column_dimensions['F'].width = 15
-    worksheet.column_dimensions['G'].width = 15
-    worksheet.column_dimensions['H'].width = 15
+    worksheet.column_dimensions['D'].width = 15
+    worksheet.column_dimensions['E'].width = 15
+    worksheet.column_dimensions['F'].width = 10
+    worksheet.column_dimensions['G'].width = 10
+    worksheet.column_dimensions['H'].width = 10
+    worksheet.column_dimensions['I'].width = 10
+    worksheet.column_dimensions['J'].width = 10
+    worksheet.column_dimensions['K'].width = 10
 
     for col_num, column_title in enumerate(columns, 1):
         cell = worksheet.cell(row=row_num, column=col_num)
@@ -1021,8 +1039,11 @@ def export_excel(request):
             prod_time,
             product.factory_number,
             product.standard_hours,
+            product.standard_hours_fact,
             product.materials,
+            product.materials_fact,
             product.direct_costs,
+            product.direct_costs_fact,
         ]
 
         for col_num, cell_value in enumerate(row, 1):
@@ -1214,22 +1235,6 @@ class TemplateDocB24Old(ObjB24Old):
         return self._check_error(result)
 
 
-class CompanyB24Old(ObjB24Old):
-    """Класс Компания Битрикс24."""
-
-    def __init__(self, portal, company_id=None):
-        super(CompanyB24Old, self).__init__(portal)
-        self.id = company_id
-        self.name = None
-
-    def get_name(self):
-        """Получить тип компании в Битрикс24."""
-        method_rest = 'crm.company.get'
-        params = {'id': self.id}
-        result = self.bx24.call(method_rest, params)
-        self.name = (self._check_error(result))['TITLE']
-
-
 class TaskB24Old(ObjB24Old):
     """Класс Задача Битрикс24."""
 
@@ -1292,25 +1297,3 @@ class ProductB24Old(ObjB24Old):
         }
         result = self.bx24.call(method_rest, params)
         return self._check_error(result)
-
-
-class ListsB24Old(ObjB24Old):
-    """Class List Bitrix24."""
-
-    def __init__(self, portal, list_id):
-        super(ListsB24Old, self).__init__(portal)
-        self.id = list_id
-        self.element_props = None
-
-    def get_element_by_filter(self, section_id, real_section_code):
-        """Get element list by id."""
-        method_rest = 'lists.element.get'
-        params = {
-            'IBLOCK_TYPE_ID': 'lists',
-            'IBLOCK_ID': self.id,
-            'FILTER': {
-                f'={real_section_code}': [section_id],
-            },
-        }
-        result = self.bx24.call(method_rest, params)
-        self.element_props = self._check_error(result)

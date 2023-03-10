@@ -7,7 +7,7 @@ from typing import Optional
 from .models import SettingsPortal
 from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
                     SettingsFactoryNumbersPortalForm,
-                    SettingsArticlesPortalForm)
+                    SettingsArticlesPortalForm, SettingsGeneralPortalForm)
 from core.models import TemplateDocFields, Portals
 from dealcard.views import _create_portal
 
@@ -17,6 +17,7 @@ from dealcard.views import _create_portal
 def index(request):
 
     template: Optional[str] = 'settings/index.html'
+    active_tab = 1
 
     if request.method == 'POST':
         member_id: Optional[str] = request.POST.get('member_id')
@@ -55,6 +56,7 @@ def index(request):
             fields_form = form_equ.save(commit=False)
             fields_form.portal = portal
             fields_form.save()
+        active_tab = 2
     else:
         form_equ: SettingsEquivalentPortalForm = SettingsEquivalentPortalForm(
             instance=settings_portal,
@@ -69,6 +71,7 @@ def index(request):
             fields_form = form_fn.save(commit=False)
             fields_form.portal = portal
             fields_form.save()
+        active_tab = 3
     else:
         form_fn = SettingsFactoryNumbersPortalForm(instance=settings_portal)
 
@@ -81,8 +84,22 @@ def index(request):
             fields_form = form_art.save(commit=False)
             fields_form.portal = portal
             fields_form.save()
+        active_tab = 4
     else:
         form_art = SettingsArticlesPortalForm(instance=settings_portal)
+
+    if 'save-settings-general' in request.POST:
+        form_general = SettingsGeneralPortalForm(
+            request.POST or None,
+            instance=settings_portal,
+        )
+        if form_general.is_valid():
+            fields_form = form_art.save(commit=False)
+            fields_form.portal = portal
+            fields_form.save()
+        active_tab = 5
+    else:
+        form_general = SettingsGeneralPortalForm(instance=settings_portal)
 
     fields = TemplateDocFields.objects.all()
     context = {
@@ -91,6 +108,8 @@ def index(request):
         'form_equ': form_equ,
         'form_fn': form_fn,
         'form_art': form_art,
+        'form_general': form_general,
         'member_id': member_id,
+        'active_tab': active_tab,
     }
     return render(request, template, context)

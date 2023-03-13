@@ -1,5 +1,29 @@
+import datetime
+
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from core.models import Portals
 from pybitrix24 import Bitrix24
+
+
+def create_portal(member_id: str) -> Portals:
+    """Метод для создания объекта Портал с проверкой"""
+
+    portal: Portals = get_object_or_404(Portals, member_id=member_id)
+
+    if ((portal.auth_id_create_date + datetime.timedelta(0, 3600)) <
+            timezone.now()):
+        bx24 = Bitrix24(portal.name)
+        bx24.auth_hostname = 'oauth.bitrix.info'
+        bx24._refresh_token = portal.refresh_id
+        bx24.client_id = portal.client_id
+        bx24.client_secret = portal.client_secret
+        bx24.refresh_tokens()
+        portal.auth_id = bx24._access_token
+        portal.refresh_id = bx24._refresh_token
+        portal.save()
+
+    return portal
 
 
 class ObjB24:
@@ -119,7 +143,6 @@ class QuoteB24(ObjB24):
         return self._check_error(self.bx24.call(
             'crm.quote.update', {'id': self.id, 'fields': fields}
         ))
-
 
 
 class TemplateDocB24(ObjB24):

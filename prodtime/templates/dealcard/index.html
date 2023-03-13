@@ -22,7 +22,17 @@
               </div>
             </div>
           </div>
-          <div class="col-10">
+          <div class="col-2">
+            <div class="card text-center fw-bold">
+              <div class="card-header bg-primary text-white justify-content-center">
+                <span>Максимальный срок</span>
+              </div>
+              <div class="card-body">
+                <span id="max-prodtime">{{ max_prodtime }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-8">
             <div class="d-flex flex-row-reverse align-items-center">
               <button class="btn btn-outline-warning ms-3" id="btn-update-costs">Обновить прямые затраты</button>
               <a href="{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}" class="btn btn-outline-success ms-3">Обновить данные из сделки</a>
@@ -49,8 +59,8 @@
       <thead>
         <tr>
           <th scope="col" width="3%" id="num">#</th>
-          <th scope="col" width="12%" id="prod">Товар</th>
-          <th scope="col" width="12%" id="print-form">В печатную форму</th>
+          <th scope="col" width="10%" id="prod">Товар</th>
+          <th scope="col" width="10%" id="print-form">В печатную форму</th>
           <th scope="col" width="7%" id="price">Цена, руб.</th>
           <th scope="col" width="4%" id="count">Кол-во</th>
           <th scope="col" width="4%" id="unit">Ед. изм.</th>
@@ -64,11 +74,12 @@
 {#          <th scope="col" width="8%" id="count-days">Кол-во раб. дней</th>#}
           <th scope="col" width="6%" id="equivalent">Экв-нт за 1 ед.</th>
           <th scope="col" width="7%" id="prod-time">Срок производства</th>
-          <th scope="col" width="8%" id="direct-costs">Прямые затраты за 1 ед без НДС</th>
+          <th scope="col" width="7%" id="direct-costs">Прямые затраты за 1 ед без НДС</th>
           <th scope="col" width="6%" id="standard-hours">Нормочасы за 1 ед</th>
-          <th scope="col" width="8%" id="materials">Материалы за 1 ед без НДС</th>
+          <th scope="col" width="7%" id="materials">Материалы за 1 ед без НДС</th>
           <th scope="col" width="7%" id="factory-number">Зав. номер</th>
           <th scope="col" width="3%" id="edit-number">Изменить номер</th>
+          <th scope="col" width="7%" id="prodtime-str">Срок производства из каталога</th>
           <th scope="col" width="3%" id="made">Готово</th>
           <th scope="col" width="3%" id="finish">Выпуск</th>
         </tr>
@@ -123,6 +134,7 @@
                          name="factory-number-1" value="Не задан" readonly disabled></td> {# Заводской номер #}
                 <td data-id="{{ product.id }}"><button class="btn btn-outline-info" disabled>🔢</button></td> {# Изменить заводской номер #}
               {% endif %}
+              <td data-id="{{ product.id }}"><textarea class="form-control prodtime-str-input" oninput='this.style.height = "";this.style.height = this.scrollHeight + "px"'>{{ product.prodtime_str }}</textarea></td>
               {% if product.made == True %}
                 <td data-id="{{ product.id }}"><input data-id="{{ product.id }}" class="form-check-input made-check-input" type="checkbox" checked></td> {# Готовность изделия #}
               {% else %}
@@ -308,6 +320,17 @@
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'materials-fact',this);
+    });
+
+    let prodtime_str = $(".prodtime-str-input")
+    prodtime_str.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    prodtime_str.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'prodtime-str',this);
     });
 
     $("#btn-update-costs").on("click", function() {

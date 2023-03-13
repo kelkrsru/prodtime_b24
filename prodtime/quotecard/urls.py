@@ -12,5 +12,4 @@ urlpatterns = [
     path('send-equivalent/', views.send_equivalent, name='send-equivalent'),
     path('create-articles/', views.create_articles, name='create-articles'),
     path('export-excel/', views.export_excel, name='export-excel'),
-    path('test-max/', views.test_max_prodtime, name='test-max'),
 ]

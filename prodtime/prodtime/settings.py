@@ -1,23 +1,16 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-27gw9b9^7!jf%f^16i!3(8dyj9t)2!f%5y$n@hg#!3cry63od*'
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'devkel.ru',
-    'prilozhenie.plazma-t.ru',
-]
+DEBUG = False if os.getenv('DEBUG') == 'False' else True
 
-
-# Application definition
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', default='').split(' ')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -64,26 +57,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'prodtime.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'dbprilozhenie',
-        'USER': 'userprilozhenie',
-        'PASSWORD': 'kyA5f!wv4Y3Me5J',
-        'HOST': '127.0.0.1',
+        'ENGINE': os.getenv('DB_ENGINE'),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('MYSQL_USER'),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
         'OPTIONS': {
-                    'sql_mode': 'traditional',
+                    'sql_mode': os.getenv('SQL_MODE'),
                 },
     }
 }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -100,10 +85,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/4.0/topics/i18n/
-
 LANGUAGE_CODE = 'ru'
 
 TIME_ZONE = 'UTC'
@@ -112,14 +93,8 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.0/howto/static-files/
 STATIC_URL = 'static/'
 STATIC_ROOT = ('/home/bitrix/ext_www/prilozhenie.plazma-t.ru/static/')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

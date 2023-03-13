@@ -4,7 +4,7 @@ import json
 
 from typing import Dict, Any
 
-from django.db.models import Sum
+from django.db.models import Sum, Max
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -14,8 +14,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
-from core.bitrix24.bitrix24 import ProductB24, DealB24, ProductRowB24, \
-    SmartProcessB24, CompanyB24, ProductInCatalogB24, ListB24, UserB24
+from core.bitrix24.bitrix24 import (
+    ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
+    ProductInCatalogB24, ListB24, UserB24, create_portal)
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
@@ -46,7 +47,7 @@ def index(request):
             'error_description': 'Неизвестный тип запроса'
         })
 
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
 
     if auth_id:
         bx24_for_user = Bitrix24(portal.name)
@@ -191,22 +192,31 @@ def index(request):
             )
             product_value['id'] = prodtime.pk
 
-        # Работа с прямыми затратами, нормочасами и материалами
-        name_fields = ['direct_costs', 'standard_hours', 'materials']
+        # Работа со сроком производства
+
+        # Работа с прямыми затратами, нормочасами, материалами,
+        # сроком производства из каталога
+        name_fields = ['direct_costs', 'standard_hours', 'materials',
+                       'prodtime_str']
         for name_field in name_fields:
             if getattr(prodtime, 'is_change_' + name_field):
                 product_value[name_field] = (str(getattr(prodtime, name_field))
                                              .replace(',', '.'))
             else:
-                code_field = getattr(settings_portal, name_field + '_str_code')
+                code_field = getattr(settings_portal, name_field + '_code')
                 value_field = product_in_catalog.properties.get(code_field)
                 if type(value_field) is dict and 'value' in value_field:
-                    value = round(decimal.Decimal(value_field.get('value')), 2)
+                    if name_field == 'prodtime_str':
+                        value = value_field.get('value')
+                    else:
+                        value = round(decimal.Decimal(
+                            value_field.get('value')), 2)
                     product_value[name_field] = str(value)
                     setattr(prodtime, name_field, value)
                 else:
                     product_value[name_field] = ''
-                    setattr(prodtime, name_field, 0)
+                    setattr(prodtime, name_field, '' if type(
+                        getattr(prodtime, name_field)) == str else 0)
                 prodtime.save()
 
         # Работа с эквивалентом
@@ -255,9 +265,6 @@ def index(request):
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
     user = UserB24(portal, int(user_id))
-    # print('****************************************************************')
-    # print(user.properties)
-    # print('****************************************************************')
     user_info = {
         'name': user.properties[0].get('NAME'),
         'lastname': user.properties[0].get('LAST_NAME'),
@@ -265,10 +272,19 @@ def index(request):
         'is_admin': user.properties[0].get(settings_portal.is_admin_code),
     }
 
+    products_for_max = ProdTimeDeal.objects.filter(
+        portal=portal, deal_id=deal_id, prod_time__isnull=False)
+    if products_for_max:
+        max_prodtime = products_for_max.aggregate(Max('prod_time')).get(
+            'prod_time__max')
+    else:
+        max_prodtime = 'Не задан'
+
     context = {
         'title': title,
         'products': products,
         'sum_equivalent': sum_equivalent,
+        'max_prodtime': max_prodtime,
         'member_id': member_id,
         'deal_id': deal_id,
         'deal': deal,
@@ -299,7 +315,7 @@ def save(request):
     if type_field == 'name-for-print':
         prodtime.name_for_print = value
     if type_field == 'prod-time':
-        prodtime.prod_time = value
+        prodtime.prod_time = value if value else None
     if value:
         if type_field == 'count-days':
             prodtime.count_days = value
@@ -308,6 +324,9 @@ def save(request):
             prodtime.equivalent_count = (decimal.Decimal(value)
                                          * prodtime.quantity)
             prodtime.is_change_equivalent = True
+        if type_field == 'prodtime-str':
+            prodtime.prodtime_str = value
+            prodtime.is_change_prodtime_str = True
         if type_field == 'direct-costs':
             prodtime.direct_costs = value
             prodtime.is_change_direct_costs = True
@@ -345,7 +364,7 @@ def update_factory_number(request):
     product_id = request.POST.get('product_id')
     member_id = request.POST.get('member_id')
     value = request.POST.get('value')
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -390,7 +409,7 @@ def create(request):
     products_id = request.POST.getlist('products_id[]')
     member_id = request.POST.get('member_id')
     deal_id = request.POST.get('deal_id')
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -480,7 +499,7 @@ def update_direct_costs(request):
 
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -522,7 +541,7 @@ def create_doc(request):
     member_id = request.POST.get('member_id')
     template_id = request.POST.get('templ_id')
     deal_id = int(request.POST.get('deal_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -629,7 +648,7 @@ def copy_products(request):
 
     member_id = request.POST.get('member_id')
     deal_id = request.POST.get('deal_id')
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
     current_year = int(datetime.date.today().year)
@@ -757,7 +776,7 @@ def copy_products(request):
             product_row.properties['productId'] = new_id_product_in_catalog
             product_row.properties['productName'] = new_name
             del product_row.properties['id']
-            result = product_row.update(product.product_id_b24)
+            product_row.update(product.product_id_b24)
         except RuntimeError as ex:
             return JsonResponse({'result': 'error',
                                  'info': f'{ex.args[0]} {ex.args[1]}'})
@@ -783,7 +802,7 @@ def write_factory_number(request):
 
     member_id = request.POST.get('member_id')
     deal_id = request.POST.get('deal_id')
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -914,9 +933,6 @@ def write_factory_number(request):
                 'quantity': 1,
             }
             productrow.add(fields)
-            # productrow_id = result.get('productRow').get('id')
-            # productrow_new = ProductRowB24(portal, productrow_id)
-            # productrow_new.update_new({'price': 1})
             result_work += (f'\nДля товара {product.name} установлен заводской'
                             f' номер {product.factory_number}')
         except Exception as ex:
@@ -941,7 +957,7 @@ def send_equivalent(request):
 
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -963,7 +979,7 @@ def export_excel(request):
 
     member_id = request.GET.get('member_id')
     deal_id = int(request.GET.get('deal_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
 
     products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     products = sorted(products, key=lambda prod: prod.sort)
@@ -1056,26 +1072,6 @@ def export_excel(request):
     workbook.save(response)
 
     return response
-
-
-def _create_portal(member_id: str) -> Portals:
-    """Метод для создания объекта Портал с проверкой"""
-
-    portal: Portals = get_object_or_404(Portals, member_id=member_id)
-
-    if ((portal.auth_id_create_date + datetime.timedelta(0, 3600)) <
-            timezone.now()):
-        bx24 = Bitrix24(portal.name)
-        bx24.auth_hostname = 'oauth.bitrix.info'
-        bx24._refresh_token = portal.refresh_id
-        bx24.client_id = portal.client_id
-        bx24.client_secret = portal.client_secret
-        bx24.refresh_tokens()
-        portal.auth_id = bx24._access_token
-        portal.refresh_id = bx24._refresh_token
-        portal.save()
-
-    return portal
 
 
 class ObjB24Old:

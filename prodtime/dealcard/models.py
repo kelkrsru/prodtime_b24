@@ -70,6 +70,17 @@ class ProdTimeDeal(ProdTime):
         null=True,
         blank=True,
     )
+    prodtime_str = models.CharField(
+        verbose_name='Срок производства',
+        help_text='Произвольное указание срока производства',
+        max_length=1024,
+        null=True,
+        blank=True,
+    )
+    is_change_prodtime_str = models.BooleanField(
+        verbose_name='Ручное изменение Срока производства',
+        default=False,
+    )
 
     class Meta:
         verbose_name = 'Срок производства в сделке'

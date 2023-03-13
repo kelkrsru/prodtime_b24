@@ -4,12 +4,12 @@ from django.views.decorators.csrf import csrf_exempt
 
 from typing import Optional
 
+from core.bitrix24.bitrix24 import create_portal
 from .models import SettingsPortal
 from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
                     SettingsFactoryNumbersPortalForm,
                     SettingsArticlesPortalForm, SettingsGeneralPortalForm)
 from core.models import TemplateDocFields, Portals
-from dealcard.views import _create_portal
 
 
 @xframe_options_exempt
@@ -29,7 +29,7 @@ def index(request):
             'error_description': 'Неизвестный тип запроса'
         })
 
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 

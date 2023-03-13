@@ -6,7 +6,7 @@
     {% load static %}
     <img src="{% static 'img/loading.gif' %}" alt="loading gif">
   </div>
-  <div class="container mt-5">
+  <div class="container-fluid mt-5">
     <div class="row">
       <div class="col-2">
         <div class="card text-center fw-bold">
@@ -33,12 +33,11 @@
         <div class="d-flex flex-row-reverse align-items-center mt-3">
           <a href="{% url 'quotecard:export-excel' %}?member_id={{ member_id }}&quote_id={{ quote_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
           <button class="btn btn-outline-primary me-3" onclick="sendProductsToDeal()">Передать товары в сделку</button>
-{#          <button class="btn btn-outline-primary me-3" onclick="TestMax()">Тестовая кнопка. Не нажимать</button>#}
         </div>
       </div>
     </div>
   </div>
-  <div class="container mt-3">
+  <div class="container-fluid mt-3">
     <table class="table table-striped align-baseline" id="main-table">
       <thead>
         <tr>
@@ -98,56 +97,56 @@
 {% endblock %}
 {% block user_scripts %}
   <script>
-    $(".datepicker-input").focus(function() {
+    let datepicker_input = $(".datepicker-input")
+    datepicker_input.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".datepicker-input").blur(function() {
+    datepicker_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'prod-time',this);
     });
 
-    $(".number-input").focus(function() {
+    let number_input = $(".number-input")
+    number_input.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".number-input").blur(function() {
+    number_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'count-days',this);
     });
 
-    $(".equivalent-input").focus(function() {
+    let equivalent = $(".equivalent-input")
+    equivalent.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".equivalent-input").blur(function() {
+    equivalent.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'equivalent',this);
     });
 
-    $(".text-input").focus(function() {
+    let text_input = $(".text-input")
+    text_input.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".text-input").blur(function() {
+    text_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'name-for-print',this);
     });
 
-    $(".prodtime-str-input").focus(function() {
+    let prodtime_str = $(".prodtime-str-input")
+    prodtime_str.focus(function() {
         $(this).removeClass('text-success');
         $(this).removeClass('text-danger');
     });
-
-    $(".prodtime-str-input").blur(function() {
+    prodtime_str.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'prodtime-str',this);
@@ -187,20 +186,6 @@
             .fail(function () {
                 document.getElementById("div-loader").style.display = "none";
                 alert('Ошибка при создании артикулов');
-            });
-    }
-
-    function TestMax() {
-        $.ajax({
-            url: "{% url 'quotecard:test-max' %}",
-            type: "POST",
-            data: {member_id: "{{ member_id }}", quote_id: "{{ quote_id }}"},
-        })
-            .done(function (response) {
-                alert(response.info);
-            })
-            .fail(function () {
-                alert('Ошибка');
             });
     }
 
@@ -261,7 +246,7 @@
             type: "POST",
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}", quote_id: "{{ quote_id }}"},
         })
-            .done(function (response) {
+            .done(function () {
                 alert("Товары переданы в связанную сделку №{{ deal_id }}")
             })
             .fail(function () {

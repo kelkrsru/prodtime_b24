@@ -41,8 +41,8 @@ class SettingsArticlesPortalForm(forms.ModelForm):
         model = SettingsPortal
         fields = ('is_auto_article_code', 'article_code',
                   'section_number_code', 'service_code', 'prodtime_str_code',
-                  'direct_costs_str_code', 'standard_hours_str_code',
-                  'materials_str_code')
+                  'direct_costs_code', 'standard_hours_code',
+                  'materials_code')
 
 
 class SettingsGeneralPortalForm(forms.ModelForm):

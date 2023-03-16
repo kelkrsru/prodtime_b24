@@ -212,6 +212,12 @@ class SettingsPortal(models.Model):
         default='UF_USR_1678006529399',
         max_length=30,
     )
+    max_prodtime_code = models.CharField(
+        verbose_name='Код свойства Максимальный срок производства',
+        help_text='Код свойства Максимальный срок производства в сделке',
+        default='UF_CRM_1678710729823',
+        max_length=30,
+    )
 
     class Meta:
         verbose_name = 'Настройка портала'

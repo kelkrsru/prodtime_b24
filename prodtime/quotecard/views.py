@@ -10,11 +10,12 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from pybitrix24 import Bitrix24
 
+from core.methods import initial_check, get_current_user
 from core.models import Portals, TemplateDocFields
 from dealcard.models import ProdTimeDeal
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
@@ -31,41 +32,22 @@ def index(request):
     """Метод страницы Карточка предложения."""
     template: str = 'quotecard/index.html'
     title: str = 'Страница карточки сделки'
-    auth_id: str = ''
-    user_id = 0
 
-    if request.method == 'POST':
-        member_id: str = request.POST['member_id']
-        quote_id: int = int(
-            json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
-        if 'AUTH_ID' in request.POST:
-            auth_id: str = request.POST.get('AUTH_ID')
-    elif request.method == 'GET':
-        member_id: str = request.GET.get('member_id')
-        quote_id: int = int(request.GET.get('quote_id'))
-    else:
+    try:
+        member_id, quote_id, auth_id = initial_check(request, 'quote_id')
+    except BadRequest:
         return render(request, 'error.html', {
             'error_name': 'QueryError',
             'error_description': 'Неизвестный тип запроса'
         })
-
     portal: Portals = create_portal(member_id)
-    if auth_id:
-        bx24_for_user = Bitrix24(portal.name)
-        bx24_for_user._access_token = auth_id
-        user_result = bx24_for_user.call('user.current')
-        if 'result' in user_result:
-            user_id = user_result.get('result').get('ID')
-    elif 'user_id' in request.COOKIES:
-        user_id = request.COOKIES.get('user_id')
-
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
-    Numeric.objects.get_or_create(portal=portal,
-                                  year=int(datetime.date.today().year),
-                                  defaults={
-                                      'last_number': 0
-                                  })
+    user_info = get_current_user(request, auth_id, portal,
+                                 settings_portal.is_admin_code)
+    year = int(datetime.date.today().year)
+    Numeric.objects.get_or_create(portal=portal, year=year,
+                                  defaults={'last_number': 0})
 
     try:
         quote = QuoteB24(portal, quote_id)
@@ -248,14 +230,6 @@ def index(request):
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
-    user = UserB24(portal, int(user_id))
-    user_info = {
-        'name': user.properties[0].get('NAME'),
-        'lastname': user.properties[0].get('LAST_NAME'),
-        'photo': user.properties[0].get('PERSONAL_PHOTO'),
-        'is_admin': user.properties[0].get(settings_portal.is_admin_code),
-    }
-
     context = {
         'title': title,
         'products': products,
@@ -266,6 +240,9 @@ def index(request):
         'templates': templates,
         'user': user_info
     }
+    response = render(request, template, context)
+    if auth_id:
+        response.set_cookie(key='user_id', value=user_info.get('user_id'))
     return render(request, template, context)
 
 

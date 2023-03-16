@@ -1,22 +1,22 @@
 import datetime
 import decimal
-import json
 
 from typing import Dict, Any
 
-from django.db.models import Sum, Max
+from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
 from core.bitrix24.bitrix24 import (
     ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
-    ProductInCatalogB24, ListB24, UserB24, create_portal)
+    ProductInCatalogB24, ListB24, create_portal)
+from core.methods import initial_check, get_current_user
 from core.models import Portals, TemplateDocFields
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
@@ -30,45 +30,27 @@ def index(request):
     """Метод страницы Карточка сделки."""
     template: str = 'dealcard/index.html'
     title: str = 'Страница карточки сделки'
-    auth_id: str = ''
-    user_id = 0
 
-    if request.method == 'POST':
-        member_id: str = request.POST['member_id']
-        deal_id: int = int(json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
-        if 'AUTH_ID' in request.POST:
-            auth_id: str = request.POST.get('AUTH_ID')
-    elif request.method == 'GET':
-        member_id: str = request.GET.get('member_id')
-        deal_id: int = int(request.GET.get('deal_id'))
-    else:
+    try:
+        member_id, deal_id, auth_id = initial_check(request)
+    except BadRequest:
         return render(request, 'error.html', {
             'error_name': 'QueryError',
             'error_description': 'Неизвестный тип запроса'
         })
-
     portal: Portals = create_portal(member_id)
-
-    if auth_id:
-        bx24_for_user = Bitrix24(portal.name)
-        bx24_for_user._access_token = auth_id
-        user_result = bx24_for_user.call('user.current')
-        if 'result' in user_result:
-            user_id = user_result.get('result').get('ID')
-    elif 'user_id' in request.COOKIES:
-        user_id = request.COOKIES.get('user_id')
-
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
-    Numeric.objects.get_or_create(portal=portal,
-                                  year=int(datetime.date.today().year),
-                                  defaults={
-                                      'last_number': 0
-                                  })
+    user_info = get_current_user(request, auth_id, portal,
+                                 settings_portal.is_admin_code)
+    year = int(datetime.date.today().year)
+    Numeric.objects.get_or_create(portal=portal, year=year,
+                                  defaults={'last_number': 0})
 
     try:
         bx24_deal = DealB24Old(deal_id, portal)
         bx24_deal.get_deal_products()
+        deal_bx = DealB24(portal, deal_id)
 
         deal, created = Deal.objects.get_or_create(
             portal=portal, deal_id=bx24_deal.deal_id,
@@ -264,19 +246,19 @@ def index(request):
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
-    user = UserB24(portal, int(user_id))
-    user_info = {
-        'name': user.properties[0].get('NAME'),
-        'lastname': user.properties[0].get('LAST_NAME'),
-        'photo': user.properties[0].get('PERSONAL_PHOTO'),
-        'is_admin': user.properties[0].get(settings_portal.is_admin_code),
-    }
 
-    products_for_max = ProdTimeDeal.objects.filter(
-        portal=portal, deal_id=deal_id, prod_time__isnull=False)
-    if products_for_max:
-        max_prodtime = products_for_max.aggregate(Max('prod_time')).get(
-            'prod_time__max')
+
+    # products_for_max = ProdTimeDeal.objects.filter(
+    #     portal=portal, deal_id=deal_id, prod_time__isnull=False)
+    # if products_for_max:
+    #     max_prodtime = products_for_max.aggregate(Max('prod_time')).get(
+    #         'prod_time__max')
+    # else:
+    #     max_prodtime = 'Не задан'
+    max_prodtime = deal_bx.properties.get(settings_portal.max_prodtime_code)
+    if max_prodtime:
+        max_prodtime = datetime.datetime.strptime(
+            max_prodtime.split('T')[0], '%Y-%m-%d').date()
     else:
         max_prodtime = 'Не задан'
 
@@ -291,8 +273,9 @@ def index(request):
         'user': user_info
     }
     response = render(request, template, context)
+    print(user_info.get('user_id'))
     if auth_id:
-        response.set_cookie(key='user_id', value=user_id)
+        response.set_cookie(key='user_id', value=user_info.get('user_id'))
     return response
 
 
@@ -516,7 +499,7 @@ def update_direct_costs(request):
             portal, productrow_in_deal.id_in_catalog)
 
         for name_field in name_fields:
-            code_field = getattr(settings_portal, name_field + '_str_code')
+            code_field = getattr(settings_portal, name_field + '_code')
             value_field = product_in_catalog.properties.get(code_field)
             if type(value_field) is dict and 'value' in value_field:
                 value = round(decimal.Decimal(value_field.get('value')), 2)
@@ -730,9 +713,10 @@ def copy_products(request):
                                               last_number_in_year, '00')
             new_name = f"{product.name_for_print} ( {article} )"
 
-        name_fields = ['direct_costs', 'standard_hours', 'materials']
+        name_fields = ['direct_costs', 'standard_hours', 'materials',
+                       'prodtime_str']
         for name_field in name_fields:
-            code_field = getattr(settings_portal, name_field + '_str_code')
+            code_field = getattr(settings_portal, name_field + '_code')
             if getattr(product, 'is_change_' + name_field):
                 product_in_catalog.properties[code_field] = str(getattr(
                     product, name_field))
@@ -1015,7 +999,8 @@ def export_excel(request):
         'Материалы План за 1 ед без НДС',
         'Материалы Факт за 1 ед без НДС',
         'Прямые затраты План за 1 ед без НДС',
-        'Прямые затраты Факт за 1 ед без НДС'
+        'Прямые затраты Факт за 1 ед без НДС',
+        'Срок производства из каталога',
     ]
 
     worksheet.merge_cells('B1:D1')
@@ -1031,13 +1016,14 @@ def export_excel(request):
     worksheet.column_dimensions['B'].width = 10
     worksheet.column_dimensions['C'].width = 17
     worksheet.column_dimensions['D'].width = 15
-    worksheet.column_dimensions['E'].width = 15
-    worksheet.column_dimensions['F'].width = 10
+    worksheet.column_dimensions['E'].width = 10
+    worksheet.column_dimensions['F'].width = 15
     worksheet.column_dimensions['G'].width = 10
     worksheet.column_dimensions['H'].width = 10
     worksheet.column_dimensions['I'].width = 10
     worksheet.column_dimensions['J'].width = 10
     worksheet.column_dimensions['K'].width = 10
+    worksheet.column_dimensions['L'].width = 15
 
     for col_num, column_title in enumerate(columns, 1):
         cell = worksheet.cell(row=row_num, column=col_num)
@@ -1060,6 +1046,7 @@ def export_excel(request):
             product.materials_fact,
             product.direct_costs,
             product.direct_costs_fact,
+            product.prodtime_str,
         ]
 
         for col_num, cell_value in enumerate(row, 1):

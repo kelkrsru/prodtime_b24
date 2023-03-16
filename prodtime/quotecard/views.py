@@ -10,18 +10,20 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
+from pybitrix24 import Bitrix24
 
+from core.methods import initial_check, get_current_user
 from core.models import Portals, TemplateDocFields
 from dealcard.models import ProdTimeDeal
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from .models import ProdTimeQuote
 
-from pybitrix24 import Bitrix24
-from core.bitrix24.bitrix24 import QuoteB24, TemplateDocB24, ProductB24, \
-    CompanyB24, DealB24, ProductRowB24, ListB24, ProductInCatalogB24
+from core.bitrix24.bitrix24 import (
+    QuoteB24, TemplateDocB24, ProductB24, CompanyB24, DealB24, ProductRowB24,
+    ListB24, ProductInCatalogB24, create_portal, UserB24)
 
 
 @xframe_options_exempt
@@ -31,27 +33,21 @@ def index(request):
     template: str = 'quotecard/index.html'
     title: str = 'Страница карточки сделки'
 
-    if request.method == 'POST':
-        member_id: str = request.POST['member_id']
-        quote_id: int = int(
-            json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
-    elif request.method == 'GET':
-        member_id: str = request.GET.get('member_id')
-        quote_id: int = int(request.GET.get('quote_id'))
-    else:
+    try:
+        member_id, quote_id, auth_id = initial_check(request, 'quote_id')
+    except BadRequest:
         return render(request, 'error.html', {
             'error_name': 'QueryError',
             'error_description': 'Неизвестный тип запроса'
         })
-
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
-    Numeric.objects.get_or_create(portal=portal,
-                                  year=int(datetime.date.today().year),
-                                  defaults={
-                                      'last_number': 0
-                                  })
+    user_info = get_current_user(request, auth_id, portal,
+                                 settings_portal.is_admin_code)
+    year = int(datetime.date.today().year)
+    Numeric.objects.get_or_create(portal=portal, year=year,
+                                  defaults={'last_number': 0})
 
     try:
         quote = QuoteB24(portal, quote_id)
@@ -199,7 +195,7 @@ def index(request):
                 if product["PRODUCT_ID"] == 0:
                     raise RuntimeError('Product not catalog',
                                        'Product not catalog')
-                product_in_catalog = ProductB24(portal, product["PRODUCT_ID"])
+                product_in_catalog = ProductInCatalogB24(portal, product["PRODUCT_ID"])
             except RuntimeError as ex:
                 return render(request, 'error.html', {
                     'error_name': ex.args[0],
@@ -214,9 +210,9 @@ def index(request):
                 product_value['prodtime_str'] = ''
                 prodtime.prodtime_str = ''
             else:
-                product_value['prodtime_str'] = list(
-                    product_in_catalog.properties.get(
-                        prodtime_str_code).values())[1]
+                product_value['prodtime_str'] = (
+                    product_in_catalog.properties.get(prodtime_str_code).
+                    get('value'))
                 prodtime.prodtime_str = product_value['prodtime_str']
             prodtime.save()
         products.append(product_value)
@@ -242,7 +238,11 @@ def index(request):
         'quote_id': quote_id,
         'deal_id': int(quote.deal_id),
         'templates': templates,
+        'user': user_info
     }
+    response = render(request, template, context)
+    if auth_id:
+        response.set_cookie(key='user_id', value=user_info.get('user_id'))
     return render(request, template, context)
 
 
@@ -285,7 +285,7 @@ def create_doc(request):
     template_id = request.POST.get('templ_id')
     quote_id = int(request.POST.get('quote_id'))
     deal_id = int(request.POST.get('deal_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -397,7 +397,7 @@ def create_articles(request):
 
     member_id = request.POST.get('member_id')
     quote_id = int(request.POST.get('quote_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
     current_year = int(datetime.date.today().year)
@@ -527,7 +527,7 @@ def create_articles(request):
             product_row.properties['productId'] = new_id_product_in_catalog
             product_row.properties['productName'] = new_name
             del product_row.properties['id']
-            result = product_row.update(product.product_id_b24)
+            product_row.update(product.product_id_b24)
         except RuntimeError as ex:
             return JsonResponse({'result': 'error',
                                  'info': f'{ex.args[0]} {ex.args[1]}'})
@@ -544,29 +544,7 @@ def create_articles(request):
     numeric.last_number = last_number_in_year
     numeric.save()
 
-    # Max prodtime
-    products_for_max = ProdTimeQuote.objects.filter(
-        portal=portal, quote_id=quote_id, prod_time__isnull=False)
-    if products_for_max:
-        max_prodtime = products_for_max.aggregate(Max('prod_time')).get(
-            'prod_time__max')
-
     return JsonResponse({'result': 'success', 'info': result_text})
-
-
-@xframe_options_exempt
-@csrf_exempt
-def test_max_prodtime(request):
-    """Метод"""
-    member_id = request.POST.get('member_id')
-    quote_id = int(request.POST.get('quote_id'))
-    portal: Portals = _create_portal(member_id)
-
-    products = ProdTimeQuote.objects.filter(portal=portal,
-                                            quote_id=quote_id)
-    max_prodtime = products.aggregate(Max('prod_time'))
-    return JsonResponse(
-        {'result': 'success', 'info': max_prodtime.get('prod_time__max')})
 
 
 @xframe_options_exempt
@@ -576,7 +554,7 @@ def copy_products(request):
 
     member_id = request.POST.get('member_id')
     quote_id = int(request.POST.get('quote_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -644,7 +622,7 @@ def send_equivalent(request):
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
     quote_id = int(request.POST.get('quote_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -666,7 +644,7 @@ def send_products(request):
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
     quote_id = int(request.POST.get('quote_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
 
@@ -712,6 +690,9 @@ def send_products(request):
                 is_change_equivalent=prodtime_in_quote.is_change_equivalent,
                 prod_time=prodtime_in_quote.prod_time,
                 count_days=prodtime_in_quote.count_days,
+                prodtime_str=prodtime_in_quote.prodtime_str,
+                is_change_prodtime_str=(
+                    prodtime_in_quote.is_change_prodtime_str),
                 portal=portal,
             )
     except RuntimeError as ex:
@@ -737,7 +718,7 @@ def export_excel(request):
 
     member_id = request.GET.get('member_id')
     quote_id = int(request.GET.get('quote_id'))
-    portal: Portals = _create_portal(member_id)
+    portal: Portals = create_portal(member_id)
 
     products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id)
     products = sorted(products, key=lambda prod: prod.sort)
@@ -810,23 +791,3 @@ def export_excel(request):
     workbook.save(response)
 
     return response
-
-
-def _create_portal(member_id: str) -> Portals:
-    """Метод для создания объекта Портал с проверкой"""
-
-    portal: Portals = get_object_or_404(Portals, member_id=member_id)
-
-    if ((portal.auth_id_create_date + datetime.timedelta(0, 3600)) <
-            timezone.now()):
-        bx24 = Bitrix24(portal.name)
-        bx24.auth_hostname = 'oauth.bitrix.info'
-        bx24._refresh_token = portal.refresh_id
-        bx24.client_id = portal.client_id
-        bx24.client_secret = portal.client_secret
-        bx24.refresh_tokens()
-        portal.auth_id = bx24._access_token
-        portal.refresh_id = bx24._refresh_token
-        portal.save()
-
-    return portal

@@ -6,5 +6,6 @@ urlpatterns = [
     path('install/', include('core.urls', namespace='core')),
     path('dealcard/', include('dealcard.urls', namespace='dealcard')),
     path('quotecard/', include('quotecard.urls', namespace='quotecard')),
+    path('reports/', include('reports.urls', namespace='reports')),
     path('admin/', admin.site.urls),
 ]

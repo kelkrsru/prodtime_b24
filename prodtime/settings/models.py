@@ -283,6 +283,3 @@ class AssociativeYearNumber(models.Model):
 
     def __str__(self):
         return 'Код для года {}'.format(self.year)
-
-
-

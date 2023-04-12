@@ -98,6 +98,7 @@ class ProdTime(CreatedModel):
 
     product_id_b24 = models.IntegerField(
         verbose_name='ID товарной позиции',
+        db_index=True,
     )
     name = models.CharField(
         verbose_name='Наименование',
@@ -263,6 +264,9 @@ class ProdTime(CreatedModel):
     class Meta:
         abstract = True
         unique_together = ['product_id_b24', 'portal']
+        indexes = [
+            models.Index(fields=['product_id_b24', 'portal'], name='prod_id_b24_portal_index')
+        ]
 
 
 class Entity(CreatedModel):

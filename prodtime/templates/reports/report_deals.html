@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+  <div id="div-loader" style="width: 100%; height: 100%; opacity: 0.5; position: fixed; background: #bacbe6; z-index: 100; text-align: center; display: none">
+    <div class="spinner-grow text-info mt-5" style="width: 10rem; height: 10rem; opacity: 1;" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="text-info mt-5 fs-3">
+      <b>Подождите, идет формирование отчета...</b>
+    </div>
+  </div>
+  <div class="container-fluid mt-3">
+
+    <div class="row mt-3">
+      <div class="col card">
+        <div class="card-header">
+          <div class="row">
+            <div class="col-10">
+              <p>Фильтр для отчета</p>
+            </div>
+            <div class="col-2 d-flex justify-content-end">
+              <a href="{% url 'settings:index' %}?member_id={{ member_id }}&back_to_settings='true'" class="btn btn-outline-primary">Вернуться к настройкам</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% load user_filters %}
+      {% if form.errors %}
+        {% for field in form %}
+          {% for error in field.errors %}
+            <div class="alert alert-danger">
+              {{ field.label }} {{ error|escape }}
+            </div>
+          {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+          <div class="alert alert-danger">
+            {{ error|escape }}
+          </div>
+        {% endfor %}
+      {% endif %}
+      <form method="post" action="{% url 'reports:report_deals' %}" onsubmit="openLoader()">
+        <div class="card-body">
+          {% csrf_token %}
+          <div class="row row-cols-5 mb-2">
+            {% for field in form %}
+              <div class="form-group col">
+                <label for="{{ field.id_for_label }}">
+                  {{ field.label }}
+                    {% if field.field.required %}
+                      <span class="required text-danger">*</span>
+                    {% endif %}
+                </label>
+                {% if field|fieldtype == 'Select' %}
+                  {{ field|addclass:'form-select' }}
+                {% elif field|widgettype == 'CheckboxInput' %}
+                  <div class="form-check form-switch mt-1">
+                    {{ field|addclass:'form-check-input' }}
+                  </div>
+                {% else %}
+                  {{ field|addclass:'form-control' }}
+                {% endif %}
+                  {% if field.help_text %}
+                    <small id="{{ field.id_for_label }}-help" class="form-text text-muted">
+                      {{ field.help_text|safe }}
+                    </small>
+                  {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="card-footer d-flex justify-content-end">
+          <input type="text" name='member_id' value="{{ member_id }}" hidden>
+          <button type="submit" class="btn btn-outline-success">Применить</button>
+{#          <button class="btn btn-outline-warning">Сбросить параметры</button>#}
+        </div>
+      </form>
+    </div>
+
+    <div class="row mt-3">
+      <table id="report-deals" class="table table-striped">
+        <thead>
+          <tr>
+            <th>Товар</th>
+            {% if show_parent_dir == 'on' %}
+              <th>Папка товара по каталогу</th>
+            {% endif %}
+            <th>Кол-во</th>
+            <th>Цена розница, руб. Без НДС  (без скидки)</th>
+            <th>НДС, % ставка</th>
+            <th>ЭК за единицу (без скидки)</th>
+            <th>Прямые затраты на единицу без НДС План</th>
+            <th>Прямые затраты на единицу без НДС Факт</th>
+            <th>Отклонение прямых затрат, %</th>
+            <th>Нормочасы на единицу План</th>
+            <th>Нормочасы на единицу Факт</th>
+            <th>Отклонение нормочасы, %</th>
+            <th>Материалы на единицу без НДС План</th>
+            <th>Материалы на единицу без НДС Факт</th>
+            <th>Отклонение материалы, %</th>
+            <th>Сумма розница, руб. с НДС</th>
+            <th>Процент скидки, %</th>
+            <th>Сумма со скидкой (продажа по счёту), руб. с НДС</th>
+            <th>Сумма ЭК по товару из сделки</th>
+            <th>Сумма прямых затрат с НДС</th>
+            <th>Валовая маржа</th>
+            <th>Рентабельность по марже</th>
+            <th>Ссылка на сделку</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+            <tr>
+            <td>{{ product.productName }}</td>
+            {% if show_parent_dir == 'on' %}
+              <td>{{ product.section_name }}</td>
+            {% endif %}
+            <td>{{ product.quantity }}</td>
+            <td>{{ product.priceNetto }}</td>
+            <td>{{ product.taxRate }}</td>
+            <td>{{ product.equivalent }}</td>
+            <td>{{ product.direct_costs }}</td>
+            <td>{{ product.direct_costs_fact }}</td>
+            <td>{{ product.direct_costs_div }}</td>
+            <td>{{ product.standard_hours }}</td>
+            <td>{{ product.standard_hours_fact }}</td>
+            <td>{{ product.standard_hours_div }}</td>
+            <td>{{ product.materials }}</td>
+            <td>{{ product.materials_fact }}</td>
+            <td>{{ product.materials_div }}</td>
+            <td>{{ product.sum_brutto }}</td>
+            <td>{{ product.discountRate }}</td>
+            <td>{{ product.sum_price }}</td>
+            <td>{{ product.sum_equivalent }}</td>
+            <td>{{ product.direct_costs_sum }}</td>
+            <td>{{ product.margin }}</td>
+            <td>{{ product.effectiveness }}</td>
+            <td><a href="https://bitrix.plazma-t.ru/crm/deal/details/{{ product.ownerId }}/" target="_blank">Сделка № {{ product.ownerId }}</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            {% if show_parent_dir == 'on' %}
+              <th></th>
+            {% endif %}
+            <th>Итого:</th>
+            <th>{{ result.res_quantity }}</th>
+            <th></th>
+            <th></th>
+            <th>{{ result.res_equivalent }}</th>
+            <th>{{ result.res_direct_costs }}</th>
+            <th>{{ result.res_direct_costs_fact }}</th>
+            <th>{{ result.res_direct_costs_div }}</th>
+            <th>{{ result.res_standard_hours }}</th>
+            <th>{{ result.res_standard_hours_fact }}</th>
+            <th>{{ result.res_standard_hours_div }}</th>
+            <th>{{ result.res_materials }}</th>
+            <th>{{ result.res_materials_fact }}</th>
+            <th>{{ result.res_materials_div }}</th>
+            <th>{{ result.res_sum_brutto }}</th>
+            <th></th>
+            <th>{{ result.res_sum_price }}</th>
+            <th>{{ result.res_sum_equivalent }}</th>
+            <th>{{ result.res_direct_costs_sum }}</th>
+            <th>{{ result.res_margin }}</th>
+            <th>{{ result.res_effectiveness }}</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+  </div>
+
+{% endblock %}
+
+{% block user_scripts %}
+  <script>
+    {% load static %}
+    $(document).ready(function () {
+        $('#report-deals').DataTable({
+        dom: '<"row"<"col-4"B><"col-8 d-flex justify-content-end"l<"ms-3"f>>>rtip',
+        scrollX: true,
+        scrollY: '600px',
+        ScrollCollapse: true,
+        paging: false,
+        language: {
+            "url": "{% static 'js/datatables.ru.lang' %}",
+        },
+        fixedColumns: {
+            left: 1,
+        },
+        fixedHeader: true,
+        columnDefs: [
+          { width: "400px", targets: 0 },
+        ],
+        buttons: {
+          buttons: [
+            {
+              extend: 'excel',
+              footer: true,
+              text: 'Экспорт в excel',
+              className: 'btn btn-outline-primary',
+              extension: '.xlsx',
+              filename: 'Отчет-по-сделкам',
+              exportOptions: {
+                columns: ':visible',
+                stripHtml: false,
+                format: {
+                  body: function(data, row, column, node) {
+                    data = $('<p>' + data + '</p>').text();
+                    return $.isNumeric(data.replace(',', '.')) ? data.replace(',', '.') : data;
+                  },
+                  footer: function(data, row, column, node) {
+                    data = $('<p>' + data + '</p>').text();
+                    return $.isNumeric(data.replace(',', '.')) ? data.replace(',', '.') : data;
+                  }
+                }
+              }
+            },
+            {
+              extend: 'copy',
+              className: 'btn btn-outline-primary',
+            },
+          ],
+          dom: {button: {className: 'btn'}},
+        },
+      });
+    });
+
+    function openLoader() {
+      document.getElementById("div-loader").style.display = "block";
+    }
+  </script>
+{% endblock %}

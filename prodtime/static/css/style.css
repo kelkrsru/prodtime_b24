@@ -11,3 +11,16 @@ body {
 .td-hidden {
   display: none;
 }
+
+th.big-col {
+  width: 400px !important;
+}
+
+table.report-deals {
+  margin: 0 auto;
+  width: 100%;
+  clear: both;
+  border-collapse: collapse;
+  table-layout: fixed;
+  word-wrap:break-word;
+}

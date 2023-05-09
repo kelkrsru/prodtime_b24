@@ -192,7 +192,6 @@ def report_deals(request):
         return render(request, template, context)
 
     start_date = request.POST.get('start_date') + "T00:00:00"
-    print(start_date)
     end_date = request.POST.get('end_date') + "T23:59:59"
     filter_date = request.POST.get('date_code')
     stages_deals = request.POST.get('stages_deals')
@@ -229,13 +228,14 @@ def report_deals(request):
             }
         }
     }
+    if filter_date == 'ufCrm1652693659':
+        filter_for_deal['ufCrm1661330774842'] = 1
     if stages_deals != 'A':
         filter_for_deal['StageSemanticId'] = stages_deals
     deals = ListEntitiesB24(portal, filter_for_deal, 'item', ['id'])
     deals_ids = []
     for deal in deals.entities:
         deals_ids.append(deal.get('id'))
-    print(deals_ids)
     filter_for_prods = {
         '=ownerType': 'D',
         '=ownerID': deals_ids

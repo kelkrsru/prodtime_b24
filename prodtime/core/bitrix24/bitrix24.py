@@ -55,6 +55,112 @@ class ObjB24:
             raise RuntimeError('Error', 'No description error')
 
 
+class ListEntitiesB24(ObjB24):
+    """Класс для получения множества сущностей по фильтру."""
+    TYPE_ENTITY = {
+        'deal': 'crm.deal.list',
+        'item': 'crm.item.list'
+    }
+
+    def __init__(self, portal: Portals, filter_entity: dict, type_entity: str,
+                 select_entity=None):
+        super().__init__(portal, 0)
+        self.select_entity = ['*'] if select_entity is None else select_entity
+        self.filter = filter_entity
+        self.method = self.TYPE_ENTITY.get(type_entity)
+        self.entities = (self.get_items_filter_no_start() if
+                         type_entity == 'item' else self.get_entities_filter())
+
+    def get_entities_filter(self):
+        """Получить сущности по фильтру."""
+        result = self.bx24.call(self.method, {'filter': self.filter})
+        if 'error' in result:
+            raise RuntimeError(result['error'], result['error_description'])
+        entities = result.get('result')
+        while 'next' in result:
+            result = self.bx24.call(self.method, {'filter': self.filter,
+                                                  'start': result.get('next')})
+            entities += result.get('result')
+        return entities
+
+    def get_items_filter(self):
+        """Получить сущности по фильтру для item."""
+        result = self.bx24.call(self.method, {'entityTypeId': 2,
+                                              'filter': self.filter,
+                                              'select': self.select_entity})
+        if 'error' in result:
+            raise RuntimeError(result['error'], result['error_description'])
+        entities = result.get('result').get('items')
+        while 'next' in result:
+            result = self.bx24.call(self.method, {'entityTypeId': 2,
+                                                  'filter': self.filter,
+                                                  'select': self.select_entity,
+                                                  'start': result.get('next')})
+            entities += result.get('result').get('items')
+        return entities
+
+    def get_items_filter_no_start(self):
+        """Получить сущности по фильтру для item."""
+        deal_id = 0
+        finish = False
+        deals = []
+
+        while not finish:
+            self.filter['>id'] = deal_id
+            result = self.bx24.call(self.method, {'entityTypeId': 2,
+                                                  'filter': self.filter,
+                                                  'order': {'id': 'ASC'},
+                                                  'start': -1})
+            if result.get('result').get('items'):
+                deal_id = result.get('result').get('items')[-1].get('id')
+                deals += result.get('result').get('items')
+            else:
+                finish = True
+
+        return deals
+
+
+class ListProductRowsB24(ObjB24):
+    """Класс для получения множества товарных позиций по фильтру."""
+
+    def __init__(self, portal: Portals, filter_productrows: dict):
+        super().__init__(portal, 0)
+        self.filter = filter_productrows
+        self.entities = self.get_productrows_filter_no_start()
+
+    def get_productrows_filter(self):
+        """Получить сущности по фильтру для item."""
+        result = self.bx24.call('crm.item.productrow.list',
+                                {'filter': self.filter})
+        if 'error' in result:
+            raise RuntimeError(result['error'], result['error_description'])
+        product_rows = result.get('result').get('productRows')
+        while 'next' in result:
+            result = self.bx24.call('crm.item.productrow.list',
+                                    {'filter': self.filter,
+                                     'start': result.get('next')})
+            product_rows += result.get('result').get('productRows')
+        return product_rows
+
+    def get_productrows_filter_no_start(self):
+        """Получить сущности по фильтру для item."""
+        productrow_id = 0
+        finish = False
+        productrows = []
+
+        while not finish:
+            self.filter['>id'] = productrow_id
+            result = self.bx24.call('crm.item.productrow.list',
+                                    {'filter': self.filter, 'order': {'id': 'ASC'}, 'start': -1})
+            if result.get('result').get('productRows'):
+                productrow_id = result.get('result').get('productRows')[-1].get('id')
+                productrows += result.get('result').get('productRows')
+            else:
+                finish = True
+
+        return productrows
+
+
 class DealB24(ObjB24):
     """Класс Сделка."""
     GET_PROPS_REST_METHOD: str = 'crm.deal.get'
@@ -209,6 +315,7 @@ class CompanyB24(ObjB24):
 
 class ActivityB24(ObjB24):
     """Класс Активити Битрикс24 (действия бизнес-процессов)."""
+
     def __init__(self, portal, obj_id, code=None):
         super().__init__(portal, obj_id)
         self.code = code
@@ -360,6 +467,7 @@ class SmartProcessB24(ObjB24):
 
 class ListB24(ObjB24):
     """Класс Универсальных списков."""
+
     def get_element_by_id(self, element_id):
         """Метод получения элемента универсального списка по его id."""
         return self._check_error(self.bx24.call(
@@ -386,3 +494,8 @@ class ListB24(ObjB24):
 class UserB24(ObjB24):
     """Класс Пользователь."""
     GET_PROPS_REST_METHOD: str = 'user.get'
+
+
+class CatalogSectionB24(ObjB24):
+    """Класс секции каталога."""
+    GET_PROPS_REST_METHOD: str = 'catalog.section.get'

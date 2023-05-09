@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from typing import Optional
 
 from core.bitrix24.bitrix24 import create_portal
+from core.methods import get_current_user
 from .models import SettingsPortal
 from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
                     SettingsFactoryNumbersPortalForm,
@@ -18,9 +19,12 @@ def index(request):
 
     template: Optional[str] = 'settings/index.html'
     active_tab = 1
+    auth_id = ''
 
     if request.method == 'POST':
         member_id: Optional[str] = request.POST.get('member_id')
+        if 'AUTH_ID' in request.POST:
+            auth_id: str = request.POST.get('AUTH_ID')
     elif request.method == 'GET':
         member_id: Optional[str] = request.GET.get('member_id')
     else:
@@ -32,6 +36,8 @@ def index(request):
     portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
+    user_info = get_current_user(request, auth_id, portal,
+                                 settings_portal.is_admin_code)
 
     if 'save-settings-deal' in request.POST:
         form_deal: SettingsDealPortalForm = SettingsDealPortalForm(
@@ -94,12 +100,15 @@ def index(request):
             instance=settings_portal,
         )
         if form_general.is_valid():
-            fields_form = form_art.save(commit=False)
+            fields_form = form_general.save(commit=False)
             fields_form.portal = portal
             fields_form.save()
         active_tab = 5
     else:
         form_general = SettingsGeneralPortalForm(instance=settings_portal)
+
+    if 'back_to_settings' in request.GET:
+        active_tab = 6
 
     fields = TemplateDocFields.objects.all()
     context = {
@@ -111,5 +120,9 @@ def index(request):
         'form_general': form_general,
         'member_id': member_id,
         'active_tab': active_tab,
+        'user': user_info,
     }
-    return render(request, template, context)
+    response = render(request, template, context)
+    if auth_id:
+        response.set_cookie(key='user_id', value=user_info.get('user_id'))
+    return response

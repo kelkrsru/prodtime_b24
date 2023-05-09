@@ -273,7 +273,6 @@ def index(request):
         'user': user_info
     }
     response = render(request, template, context)
-    print(user_info.get('user_id'))
     if auth_id:
         response.set_cookie(key='user_id', value=user_info.get('user_id'))
     return response

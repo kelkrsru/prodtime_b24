@@ -36,9 +36,16 @@ def get_current_user(request, auth_id, portal, is_admin_code):
         user_result = bx24_for_user.call('user.current')
         if 'result' in user_result:
             user_id = user_result.get('result').get('ID')
-    elif 'user_id' in request.COOKIES:
+    elif 'user_id' in request.COOKIES and request.COOKIES.get('user_id'):
         user_id = request.COOKIES.get('user_id')
-    print(f'{user_id = }')
+    else:
+        return {
+            'user_id': 0,
+            'name': 'Анонимный',
+            'lastname': 'пользователь',
+            'photo': None,
+            'is_admin': 'N',
+        }
 
     user = UserB24(portal, int(user_id))
     return {

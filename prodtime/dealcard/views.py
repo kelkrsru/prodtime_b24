@@ -861,6 +861,17 @@ def write_factory_number(request):
                         finish=product.finish,
                         made=product.made,
                         deal_id=deal_id,
+                        direct_costs=product.direct_costs,
+                        direct_costs_fact=product.direct_costs_fact,
+                        is_change_direct_costs=product.is_change_direct_costs,
+                        materials=product.materials,
+                        materials_fact=product.materials_fact,
+                        is_change_materials=product.is_change_materials,
+                        standard_hours=product.standard_hours,
+                        standard_hours_fact=product.standard_hours_fact,
+                        is_change_standard_hours=product.is_change_standard_hours,
+                        prodtime_str=product.prodtime_str,
+                        is_change_prodtime_str=product.is_change_prodtime_str,
                         portal=portal,
                     )
                     products.append(new_product)

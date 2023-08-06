@@ -48,6 +48,7 @@ class ReportDealsForm(forms.Form):
     show_parent_dir = forms.BooleanField(
         label='Показывать папку товара',
         required=False,
+        initial=True,
     )
 
     def clean(self):

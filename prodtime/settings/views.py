@@ -4,7 +4,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 from typing import Optional
 
-from core.bitrix24.bitrix24 import create_portal
+from activities.models import Activity
+from core.bitrix24.bitrix24 import create_portal, ActivityB24
 from core.methods import get_current_user
 from .models import SettingsPortal
 from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
@@ -38,6 +39,17 @@ def index(request):
                                                         portal=portal)
     user_info = get_current_user(request, auth_id, portal,
                                  settings_portal.is_admin_code)
+
+    activities: Activity = Activity.objects.all()
+
+    try:
+        activities_installed = ActivityB24(portal,
+                                           obj_id=None).get_all_installed()
+    except RuntimeError as ex:
+        return render(request, 'error.html', {
+            'error_name': ex.args[0],
+            'error_description': ex.args[1]
+        })
 
     if 'save-settings-deal' in request.POST:
         form_deal: SettingsDealPortalForm = SettingsDealPortalForm(
@@ -121,6 +133,8 @@ def index(request):
         'member_id': member_id,
         'active_tab': active_tab,
         'user': user_info,
+        'activities': activities,
+        'activities_installed': activities_installed,
     }
     response = render(request, template, context)
     if auth_id:

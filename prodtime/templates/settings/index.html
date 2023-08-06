@@ -11,6 +11,7 @@
       <button class="nav-link" id="nav-template-tab" data-bs-toggle="tab" data-bs-target="#nav-template" type="button" role="tab" aria-controls="nav-template" aria-selected="false">Коды полей для вставки в шаблон</button>
       <button class="nav-link {% if active_tab == 5 %} active {% endif %}" id="nav-general-tab" data-bs-toggle="tab" data-bs-target="#nav-general" type="button" role="tab" aria-controls="nav-general" aria-selected="{% if active_tab == 5 %} true {% else %} false {% endif %}">Права доступа</button>
       <button class="nav-link {% if active_tab == 6 %} active {% endif %}" id="nav-reports-tab" data-bs-toggle="tab" data-bs-target="#nav-reports" type="button" role="tab" aria-controls="nav-reports" aria-selected="{% if active_tab == 6 %} true {% else %} false {% endif %}">Отчеты</button>
+      <button class="nav-link {% if active_tab == 7 %} active {% endif %}" id="nav-activity-tab" data-bs-toggle="tab" data-bs-target="#nav-activity" type="button" role="tab" aria-controls="nav-activity" aria-selected="{% if active_tab == 7 %} true {% else %} false {% endif %}">Активити</button>
     </div>
   </nav>
 
@@ -412,5 +413,81 @@
         </div>
       </div>
     </div>
+
+    <div class="tab-pane fade {% if active_tab == 7 %} show active {% endif %}" id="nav-activity" role="tabpanel" aria-labelledby="nav-activity-tab">
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+        {% for activity in activities %}
+          <div class="col mb-2 d-flex align-items-stretch">
+            <div class="card p-2">
+              <div class="card-header fw-bold">
+                {{ activity.name }}
+              </div>
+              <div class="card-body">
+                <p>{{ activity.description }}</p>
+                {% if activity.code in activities_installed %}
+                  <div class="alert alert-success" id="div-install-{{ activity.code }}">Установлено</div>
+                  <div class="alert alert-danger" id="div-uninstall-{{ activity.code }}" hidden>Не установлено</div>
+                {% else %}
+                  <div class="alert alert-success" id="div-install-{{ activity.code }}" hidden>Установлено</div>
+                  <div class="alert alert-danger" id="div-uninstall-{{ activity.code }}">Не установлено</div>
+                {% endif %}
+              </div>
+              <div class="card-footer">
+                <button class="btn btn-success" onclick="installActivity('{{ activity.code }}')">Установить</button>
+                <button class="btn btn-danger" onclick="uninstallActivity('{{ activity.code }}')">Удалить</button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
+{% endblock %}
+{% block user_scripts %}
+  <script>
+    function installActivity(code) {
+        let div_install = document.getElementById('div-install-' + code);
+        let div_uninstall = document.getElementById('div-uninstall-' + code);
+        $.ajax({
+            url: "{% url 'activities:install' %}",
+            type: "POST",
+            data: {code: code, member_id: "{{ member_id }}"},
+        })
+            .done(function (response) {
+                if (response.result === true) {
+                    alert('Активити успешно установлено на портал');
+                    div_uninstall.hidden = true;
+                    div_install.hidden = false;
+                }
+                else {
+                    alert('Установка активити завершилась неудачно. Ошибка: ' + response.error_name + ' Описание ошибки: ' + response.error_description);
+                }
+            })
+            .fail(function () {
+                alert('Установка активити завершилось неудачно. Неизвестный тип ошибки');
+            });
+    }
+    function uninstallActivity(code) {
+        let div_install = document.getElementById('div-install-' + code);
+        let div_uninstall = document.getElementById('div-uninstall-' + code);
+        $.ajax({
+            url: "{% url 'activities:uninstall' %}",
+            type: "POST",
+            data: {code: code, member_id: "{{ member_id }}"},
+        })
+            .done(function (response) {
+                if (response.result === true) {
+                    alert('Активити успешно удалено с портала');
+                    div_uninstall.hidden = false;
+                    div_install.hidden = true;
+                }
+                else {
+                    alert('Удаление активити завершилось неудачно. Ошибка: ' + response.error_name + ' Описание ошибки: ' + response.error_description);
+                }
+            })
+            .fail(function () {
+                alert('Удаление активити завершилось неудачно. Неизвестный тип ошибки');
+            });
+    }
+  </script>
 {% endblock %}

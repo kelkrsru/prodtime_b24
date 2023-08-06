@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'dealcard',
     'quotecard',
     'settings',
+    'activities',
 ]
 
 MIDDLEWARE = [

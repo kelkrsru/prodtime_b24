@@ -200,11 +200,13 @@
           buttons: [
             {
               extend: 'excel',
-              footer: true,
+              header: true,
+              footer: false,
               text: 'Экспорт в excel',
               className: 'btn btn-outline-primary',
               extension: '.xlsx',
               filename: 'Отчет-по-сделкам',
+              title: null,
               exportOptions: {
                 columns: ':visible',
                 stripHtml: false,

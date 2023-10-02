@@ -289,3 +289,40 @@ class Entity(CreatedModel):
 
     class Meta:
         abstract = True
+
+
+class Responsible(CreatedModel):
+    """Модель для хранения ответственных сотрудников из Б24."""
+    id_b24 = models.PositiveIntegerField(
+        verbose_name='ID в Битрикс24',
+        db_index=True,
+        unique=True,
+    )
+    first_name = models.CharField(
+        verbose_name='Имя',
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    last_name = models.CharField(
+        verbose_name='Фамилия',
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    position = models.CharField(
+        verbose_name='Должность',
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    def get_full_name(self):
+        return f'{self.first_name} {self.last_name}'
+
+    def __str__(self):
+        return self.get_full_name()
+
+    class Meta:
+        verbose_name = 'Ответственный'
+        verbose_name_plural = 'Ответственные'

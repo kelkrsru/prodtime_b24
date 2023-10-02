@@ -1,5 +1,7 @@
 from django import forms
 
+from core.models import Responsible
+
 
 class ReportDealsForm(forms.Form):
     """Форма для применения фильтра отчета по сделкам."""
@@ -60,3 +62,63 @@ class ReportDealsForm(forms.Form):
                 "Конечная дата не может быть меньше начальной даты.")
 
 
+class ReportProductionForm(forms.Form):
+    """Форма для применения фильтра отчета по производству."""
+
+    SHOW_MADE_CHOICES = [
+        (None, 'Не выбрано'),
+        (True, 'Готово'),
+        (False, 'Не готово'),
+    ]
+
+    SHOW_FINISH_CHOICES = [
+        (None, 'Не выбрано'),
+        (True, 'Выпущен'),
+        (False, 'Не выпущен'),
+    ]
+
+    start_date = forms.DateField(
+        label='Начальная дата производства',
+        widget=forms.widgets.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control datepicker-input',
+        }),
+        error_messages={'required': 'Укажите дату начала'}
+    )
+
+    end_date = forms.DateField(
+        label='Конечная дата производства',
+        widget=forms.widgets.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control datepicker-input',
+        }),
+        error_messages={'required': 'Укажите дату окончания'}
+    )
+
+    show_made = forms.ChoiceField(
+        label='Готово',
+        choices=SHOW_MADE_CHOICES,
+        required=False,
+    )
+
+    show_finish = forms.ChoiceField(
+        label='Выпуск',
+        choices=SHOW_FINISH_CHOICES,
+        required=False,
+    )
+
+    responsible = forms.ModelChoiceField(
+        queryset=Responsible.objects.all(),
+        to_field_name='id_b24',
+        empty_label='Не выбрано',
+        label='Ответственный',
+        required=False,
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get("start_date")
+        end_date = cleaned_data.get("end_date")
+        if end_date < start_date:
+            raise forms.ValidationError(
+                "Конечная дата не может быть меньше начальной даты.")

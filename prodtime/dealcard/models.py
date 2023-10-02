@@ -1,6 +1,6 @@
 from django.db import models
 
-from core.models import ProdTime, Entity
+from core.models import ProdTime, Entity, Responsible
 
 
 class ProdTimeDeal(ProdTime):
@@ -93,6 +93,21 @@ class Deal(Entity):
 
     deal_id = models.IntegerField(
         verbose_name='ID сделки Битрикс24',
+    )
+    responsible = models.ForeignKey(
+        Responsible,
+        on_delete=models.PROTECT,
+        verbose_name='Ответственный',
+        null=True,
+        blank=True,
+    )
+
+    invoice_number = models.CharField(
+        max_length=255,
+        verbose_name='Номер счета',
+        help_text='Номер счета из пользовательского поля сделки',
+        null=True,
+        blank=True,
     )
 
     class Meta:

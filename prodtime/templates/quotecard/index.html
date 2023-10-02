@@ -246,8 +246,13 @@
             type: "POST",
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}", quote_id: "{{ quote_id }}"},
         })
-            .done(function () {
-                alert("Товары переданы в связанную сделку №{{ deal_id }}")
+            .done(function (response) {
+                if(response.result === 'ok'){
+                    alert('Товары переданы в связанную сделку №{{ deal_id }}');
+                }
+                else if(response.result === 'error'){
+                    alert('Ошибка: ' + response.error_description);
+                }
             })
             .fail(function () {
                 alert('Ошибка передачи товаров в сделку');

@@ -15,9 +15,9 @@ from openpyxl.styles import Alignment
 
 from core.bitrix24.bitrix24 import (
     ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
-    ProductInCatalogB24, ListB24, create_portal)
+    ProductInCatalogB24, ListB24, create_portal, UserB24)
 from core.methods import initial_check, get_current_user
-from core.models import Portals, TemplateDocFields
+from core.models import Portals, TemplateDocFields, Responsible
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
 
@@ -52,10 +52,24 @@ def index(request):
         bx24_deal.get_deal_products()
         deal_bx = DealB24(portal, deal_id)
 
+        responsible_id = int(deal_bx.responsible)
+        responsible_b24 = UserB24(portal, responsible_id)
+        responsible, created = Responsible.objects.update_or_create(
+            id_b24=responsible_id,
+            defaults={
+                'first_name': responsible_b24.properties[0].get('NAME'),
+                'last_name': responsible_b24.properties[0].get('LAST_NAME'),
+                'position': responsible_b24.properties[0].get('WORK_POSITION'),
+            },
+        )
+
         deal, created = Deal.objects.get_or_create(
             portal=portal, deal_id=bx24_deal.deal_id,
             defaults={'general_number': '000.'}
         )
+        deal.responsible = responsible
+        deal.invoice_number = deal_bx.properties.get('UF_CRM_1661507258282')
+        deal.save()
     except RuntimeError as ex:
         return render(request, 'error.html', {
             'error_name': ex.args[0],

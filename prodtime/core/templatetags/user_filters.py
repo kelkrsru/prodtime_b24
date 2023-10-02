@@ -44,6 +44,11 @@ def tax_sum(qty, unit_price, rate):
     return round(sum*decimal.Decimal(rate)/100, 2)
 
 
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)
+
+
 register.filter('addclass', addclass)
 register.filter('fieldtype', fieldtype)
 register.filter('emptyvalue', emptyvalue)

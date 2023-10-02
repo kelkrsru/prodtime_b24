@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Portals, TemplateDocFields
+from .models import Portals, TemplateDocFields, Responsible
 
 
 class PortalsAdmin(admin.ModelAdmin):
@@ -19,6 +19,11 @@ class TemplateDocFieldsAdmin(admin.ModelAdmin):
         'code_b24',
         'code_db',
     )
+
+
+@admin.register(Responsible)
+class ResponsibleAdmin(admin.ModelAdmin):
+    list_display = ('id_b24', 'first_name', 'last_name')
 
 
 admin.site.register(Portals, PortalsAdmin)

@@ -696,10 +696,7 @@ def send_products(request):
                 portal=portal,
             )
     except RuntimeError as ex:
-        return render(request, 'error.html', {
-            'error_name': ex.args[0],
-            'error_description': ex.args[1]
-        })
+        return JsonResponse({'result': 'error', 'error_name': ex.args[0], 'error_description': ex.args[1]})
 
     sum_equivalent = ProdTimeDeal.objects.filter(
         portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))

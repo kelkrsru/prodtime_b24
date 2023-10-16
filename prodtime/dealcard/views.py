@@ -260,8 +260,6 @@ def index(request):
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
-
-
     # products_for_max = ProdTimeDeal.objects.filter(
     #     portal=portal, deal_id=deal_id, prod_time__isnull=False)
     # if products_for_max:

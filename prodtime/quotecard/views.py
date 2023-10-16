@@ -1,10 +1,9 @@
 import datetime
 import decimal
-import json
 
 from typing import Dict, Any
 
-from django.db.models import Sum, Max
+from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -13,7 +12,6 @@ from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
-from pybitrix24 import Bitrix24
 
 from core.methods import initial_check, get_current_user
 from core.models import Portals, TemplateDocFields
@@ -23,7 +21,7 @@ from .models import ProdTimeQuote
 
 from core.bitrix24.bitrix24 import (
     QuoteB24, TemplateDocB24, ProductB24, CompanyB24, DealB24, ProductRowB24,
-    ListB24, ProductInCatalogB24, create_portal, UserB24)
+    ListB24, ProductInCatalogB24, create_portal)
 
 
 @xframe_options_exempt

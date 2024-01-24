@@ -229,6 +229,13 @@ class ProdTime(CreatedModel):
         verbose_name='Ручное изменение эквивалента',
         default=False,
     )
+    income = models.DecimalField(
+        verbose_name='Прибыль (план)',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
     finish = models.BooleanField(
         verbose_name='Выпуск изделия',
         default=False,

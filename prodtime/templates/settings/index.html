@@ -7,7 +7,7 @@
       <button class="nav-link {% if active_tab == 1 %} active {% endif %}" id="nav-home-tab" data-bs-toggle="tab" data-bs-target="#nav-deal" type="button" role="tab" aria-controls="nav-deal" aria-selected="{% if active_tab == 1 %} true {% else %} false {% endif %}">Создание сделки и задачи к ней</button>
       <button class="nav-link {% if active_tab == 2 %} active {% endif %}" id="nav-profile-tab" data-bs-toggle="tab" data-bs-target="#nav-equivalent" type="button" role="tab" aria-controls="nav-equivalent" aria-selected="{% if active_tab == 2 %} true {% else %} false {% endif %}">Настройки для эквивалента и нумерации КП</button>
       <button class="nav-link {% if active_tab == 3 %} active {% endif %}" id="nav-factory-number-tab" data-bs-toggle="tab" data-bs-target="#nav-factory-number" type="button" role="tab" aria-controls="nav-factory-number" aria-selected="{% if active_tab == 3 %} true {% else %} false {% endif %}">Заводские номера и копирование товаров в каталог</button>
-      <button class="nav-link {% if active_tab == 4 %} active {% endif %}" id="nav-article-tab" data-bs-toggle="tab" data-bs-target="#nav-article" type="button" role="tab" aria-controls="nav-article" aria-selected="{% if active_tab == 4 %} true {% else %} false {% endif %}">Артикулы и Прямые затраты</button>
+      <button class="nav-link {% if active_tab == 4 %} active {% endif %}" id="nav-article-tab" data-bs-toggle="tab" data-bs-target="#nav-article" type="button" role="tab" aria-controls="nav-article" aria-selected="{% if active_tab == 4 %} true {% else %} false {% endif %}">Артикулы, Прямые затраты, Прибыль</button>
       <button class="nav-link" id="nav-template-tab" data-bs-toggle="tab" data-bs-target="#nav-template" type="button" role="tab" aria-controls="nav-template" aria-selected="false">Коды полей для вставки в шаблон</button>
       <button class="nav-link {% if active_tab == 5 %} active {% endif %}" id="nav-general-tab" data-bs-toggle="tab" data-bs-target="#nav-general" type="button" role="tab" aria-controls="nav-general" aria-selected="{% if active_tab == 5 %} true {% else %} false {% endif %}">Права доступа</button>
       <button class="nav-link {% if active_tab == 6 %} active {% endif %}" id="nav-reports-tab" data-bs-toggle="tab" data-bs-target="#nav-reports" type="button" role="tab" aria-controls="nav-reports" aria-selected="{% if active_tab == 6 %} true {% else %} false {% endif %}">Отчеты</button>
@@ -232,7 +232,7 @@
       <div class="row justify-content-center">
         <div class="col-6 card">
           <div class="card-header fw-bold">
-            Артикулы и Прямые затраты
+            Артикулы, Прямые затраты, Прибыль
           </div>
           <div class="card-body">
             {% load user_filters %}

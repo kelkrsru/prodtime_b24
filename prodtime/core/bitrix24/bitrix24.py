@@ -365,6 +365,30 @@ class ProductInCatalogB24(ObjB24):
         result = self.bx24.call(method_rest, params)
         return self._check_error(result)
 
+    def update(self, fields):
+        """Метод обновления товара в каталоге."""
+        method_rest = 'catalog.product.update'
+        params = {'id': self.id, 'fields': fields}
+        result = self.bx24.call(method_rest, params)
+        return self._check_error(result)
+
+    def get_all_products_in_section(self, select_user, filter_user):
+        """Получить все товары из определенной секции"""
+        method_rest = 'catalog.product.list'
+
+        result = self.bx24.call(method_rest, {'filter': filter_user, 'select': select_user})
+        if 'error' in result:
+            raise RuntimeError(result['error'], result['error_description'])
+        products = result.get('result').get('products')
+        while 'next' in result:
+            print(result.get('next'))
+            result = self.bx24.call(method_rest, {'filter': filter_user, 'select': select_user,
+                                                  'start': result.get('next')})
+            if not result:
+                print()
+            products += result.get('result').get('products')
+        return products
+
 
 class ProductRowB24(ObjB24):
     """Класс Товарной позиции."""

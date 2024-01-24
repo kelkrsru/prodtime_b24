@@ -151,22 +151,24 @@ def index(request):
             )
             product_value['id'] = prodtime.pk
 
+        # Проверка товара на каталог
+        try:
+            if product["PRODUCT_ID"] == 0:
+                raise RuntimeError('Product not catalog',
+                                   'Product not catalog')
+            product_in_catalog = ProductB24(portal, product["PRODUCT_ID"])
+        except RuntimeError as ex:
+            return render(request, 'error.html', {
+                'error_name': ex.args[0],
+                'error_description': f'{ex.args[1]} для товара '
+                                     f'{prodtime.name}'
+            })
+
         # Работа с эквивалентом
         if prodtime.is_change_equivalent:
             product_value['equivalent'] = str(prodtime.equivalent).replace(
                 ',', '.')
         else:
-            try:
-                if product["PRODUCT_ID"] == 0:
-                    raise RuntimeError('Product not catalog',
-                                       'Product not catalog')
-                product_in_catalog = ProductB24(portal, product["PRODUCT_ID"])
-            except RuntimeError as ex:
-                return render(request, 'error.html', {
-                    'error_name': ex.args[0],
-                    'error_description': f'{ex.args[1]} для товара '
-                                         f'{prodtime.name}'
-                })
             equivalent_code = settings_portal.equivalent_code
             if (not product_in_catalog.properties
                     or equivalent_code not in product_in_catalog.properties
@@ -184,6 +186,18 @@ def index(request):
             prodtime.equivalent_count = (prodtime.equivalent *
                                          prodtime.quantity)
             prodtime.save()
+
+        # Работа с прибылью
+        income_code = settings_portal.income_code.upper().replace('Y', 'Y_')
+        if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
+            product_value['income'] = ''
+            prodtime.income = 0
+        else:
+            income_value_per_field = product_in_catalog.properties.get(income_code)
+            income_value_per = round(decimal.Decimal(income_value_per_field.get('value')), 2)
+            income_result = round(prodtime.sum * income_value_per / 100, 2)
+            prodtime.income = income_result
+        prodtime.save()
 
         # Работа со сроком производства
         if prodtime.is_change_prodtime_str:
@@ -685,6 +699,7 @@ def send_products(request):
                 deal_id=deal.id,
                 equivalent=prodtime_in_quote.equivalent,
                 equivalent_count=prodtime_in_quote.equivalent_count,
+                income=prodtime_in_quote.income,
                 is_change_equivalent=prodtime_in_quote.is_change_equivalent,
                 prod_time=prodtime_in_quote.prod_time,
                 count_days=prodtime_in_quote.count_days,

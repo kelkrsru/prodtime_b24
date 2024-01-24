@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import ProdTimeQuote
 
 
+@admin.register(ProdTimeQuote)
 class ProdTimeQuoteAdmin(admin.ModelAdmin):
     list_display = (
         'name',
@@ -9,6 +10,4 @@ class ProdTimeQuoteAdmin(admin.ModelAdmin):
         'quote_id',
         'portal',
     )
-
-
-admin.site.register(ProdTimeQuote, ProdTimeQuoteAdmin)
+    search_fields = ['quote_id', ]

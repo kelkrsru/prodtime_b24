@@ -106,6 +106,7 @@
             <th>Сумма прямых затрат с НДС</th>
             <th>Валовая маржа (руб., С НДС)</th>
             <th>Рентабельность по марже</th>
+            <th>Прибыль (план)</th>
             <th>Ссылка на сделку</th>
           </tr>
         </thead>
@@ -136,6 +137,7 @@
             <td>{{ product.direct_costs_sum }}</td>
             <td>{{ product.margin }}</td>
             <td>{{ product.effectiveness }}</td>
+            <td>{{ product.income }}</td>
             <td><a href="https://bitrix.plazma-t.ru/crm/deal/details/{{ product.ownerId }}/" target="_blank">Сделка № {{ product.ownerId }}</a></td>
           </tr>
           {% endfor %}
@@ -166,6 +168,7 @@
             <th>{{ result.res_direct_costs_sum }}</th>
             <th>{{ result.res_margin }}</th>
             <th>{{ result.res_effectiveness }}</th>
+            <th>{{ result.res_income }}</th>
             <th></th>
           </tr>
         </tfoot>

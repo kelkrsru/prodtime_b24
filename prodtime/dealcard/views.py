@@ -215,6 +215,18 @@ def index(request):
                         getattr(prodtime, name_field)) == str else 0)
                 prodtime.save()
 
+        # Работа с прибылью
+            income_code = settings_portal.income_code
+            if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
+                product_value['income'] = ''
+                prodtime.income = 0
+            else:
+                income_value_per_field = product_in_catalog.properties.get(income_code)
+                income_value_per = round(decimal.Decimal(income_value_per_field.get('value')), 2)
+                income_result = round(prodtime.sum * income_value_per / 100, 2)
+                prodtime.income = income_result
+            prodtime.save()
+
         # Работа с эквивалентом
         if prodtime.is_change_equivalent:
             product_value['equivalent'] = str(prodtime.equivalent).replace(
@@ -561,8 +573,7 @@ def create_doc(request):
     else:
         kp_number = ''
 
-    products = ProdTimeDeal.objects.filter(portal=portal,
-                                           deal_id=deal_id).values()
+    products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).values()
     products = sorted(products, key=lambda prod: prod.get('sort'))
     fields = TemplateDocFields.objects.values()
     fields = list(fields)
@@ -724,50 +735,36 @@ def copy_products(request):
                                               last_number_in_year, '00')
             new_name = f"{product.name_for_print} ( {article} )"
 
-        name_fields = ['direct_costs', 'standard_hours', 'materials',
-                       'prodtime_str']
+        name_fields = ['direct_costs', 'standard_hours', 'materials', 'prodtime_str']
         for name_field in name_fields:
             code_field = getattr(settings_portal, name_field + '_code')
             if getattr(product, 'is_change_' + name_field):
-                product_in_catalog.properties[code_field] = str(getattr(
-                    product, name_field))
+                product_in_catalog.properties[code_field] = str(getattr(product, name_field))
 
-        equivalent_code = ''.join(
-            settings_portal.equivalent_code.split('_')).lower()
+        equivalent_code = ''.join(settings_portal.equivalent_code.split('_')).lower()
         if product.is_change_equivalent:
-            product_in_catalog.properties[
-                equivalent_code] = str(product.equivalent)
+            product_in_catalog.properties[equivalent_code] = str(product.equivalent)
 
         product_in_catalog.properties['name'] = new_name
         product_in_catalog.properties['iblockSectionId'] = new_section_id
-        product_in_catalog.properties['createdBy'] = (
-            settings_portal.responsible_id_copy_catalog)
+        product_in_catalog.properties['createdBy'] = settings_portal.responsible_id_copy_catalog
         product_in_catalog.properties['purchasingPrice'] = None
         product_in_catalog.properties['purchasingCurrency'] = 'RUB'
-        factory_number_code = ''.join(
-            settings_portal.factory_number_code.split('_')).lower()
+        factory_number_code = ''.join(settings_portal.factory_number_code.split('_')).lower()
         product_in_catalog.properties[factory_number_code] = {}
         product_in_catalog.properties[factory_number_code]['value'] = 'Y'
-        product_in_catalog.properties[
-            settings_portal.is_auto_article_code] = {}
-        product_in_catalog.properties[
-            settings_portal.service_code] = {}
+        product_in_catalog.properties[settings_portal.is_auto_article_code] = {}
+        product_in_catalog.properties[settings_portal.service_code] = {}
         if service == 'Y':
-            product_in_catalog.properties[
-                settings_portal.is_auto_article_code]['value'] = 'N'
-            product_in_catalog.properties[
-                settings_portal.service_code]['value'] = 'Y'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'N'
+            product_in_catalog.properties[settings_portal.service_code]['value'] = 'Y'
         else:
-            product_in_catalog.properties[
-                settings_portal.is_auto_article_code]['value'] = 'Y'
-            product_in_catalog.properties[
-                settings_portal.service_code]['value'] = 'N'
-            product_in_catalog.properties[
-                settings_portal.article_code] = article
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'Y'
+            product_in_catalog.properties[settings_portal.service_code]['value'] = 'N'
+            product_in_catalog.properties[settings_portal.article_code] = article
         del product_in_catalog.properties['id']
         try:
-            new_id_product_in_catalog = product_in_catalog.add().get(
-                'element').get('id')
+            new_id_product_in_catalog = product_in_catalog.add().get('element').get('id')
             product_row.properties['productId'] = new_id_product_in_catalog
             product_row.properties['productName'] = new_name
             del product_row.properties['id']
@@ -854,6 +851,7 @@ def write_factory_number(request):
                         price_netto=product.price_netto,
                         price_brutto=product.price_brutto,
                         quantity=1,
+                        income=round(product.income/product.quantity, 2),
                         measure_code=product.measure_code,
                         measure_name=product.measure_name,
                         bonus_type_id=product.bonus_type_id,

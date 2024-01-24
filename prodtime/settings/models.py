@@ -205,6 +205,13 @@ class SettingsPortal(models.Model):
         default='property92',
         max_length=30,
     )
+    income_code = models.CharField(
+        verbose_name='Код свойства Прибыль, %',
+        help_text='Код свойства Прибыль (план) в каталоге товаров. Код, '
+                  'который отдает метод "catalog.product.get"',
+        default='property357',
+        max_length=30,
+    )
     is_admin_code = models.CharField(
         verbose_name='Код свойства Администратор приложения',
         help_text='Код свойства Администратор приложения в пользователях '

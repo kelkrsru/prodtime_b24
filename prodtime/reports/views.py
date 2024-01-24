@@ -19,7 +19,7 @@ from settings.models import SettingsPortal
 @xframe_options_exempt
 @csrf_exempt
 def report_deals(request):
-    """Метод страницы Карточка сделки."""
+    """Метод Отчет по сделкам."""
     template: str = 'reports/report_deals.html'
     title: str = 'Отчеты'
 
@@ -60,6 +60,8 @@ def report_deals(request):
         else:
             materials_div = str_blank
 
+        income = prodtime_db.income if prodtime_db.income else str_blank
+
         sum_brutto = round(prodtime.price_brutto * prodtime.quantity, 2)
         sum_price = round(prodtime.price * prodtime.quantity, 2)
         equivalent = prodtime.equivalent
@@ -84,7 +86,8 @@ def report_deals(request):
             'equivalent': equivalent,
             'sum_equivalent': sum_equivalent,
             'margin': margin,
-            'effectiveness': effectiveness
+            'effectiveness': effectiveness,
+            'income': income
         }
 
     def _get_result_for_products(products_list):
@@ -145,6 +148,7 @@ def report_deals(request):
         res_direct_costs_sum = _sum(products_list, 'direct_costs_sum')
         res_margin = _sum(products_list, 'margin')
         res_effectiveness = _avg(products_list, 'effectiveness')
+        res_income = _sum(products_list, 'income')
 
         return {
             'res_equivalent': res_equivalent,
@@ -164,6 +168,7 @@ def report_deals(request):
             'res_direct_costs_sum': res_direct_costs_sum,
             'res_margin': res_margin,
             'res_effectiveness': res_effectiveness,
+            'res_income': res_income,
         }
 
     if request.method == 'POST':

@@ -205,11 +205,24 @@ class SettingsPortal(models.Model):
         default='property92',
         max_length=30,
     )
-    income_code = models.CharField(
-        verbose_name='Код свойства Прибыль, %',
-        help_text='Код свойства Прибыль (план) в каталоге товаров. Код, '
-                  'который отдает метод "catalog.product.get"',
-        default='property357',
+    # income_code = models.CharField(
+    #     verbose_name='Код свойства Прибыль, %',
+    #     help_text='Код свойства Прибыль (план) в каталоге товаров. Код, '
+    #               'который отдает метод "catalog.product.get"',
+    #     default='property357',
+    #     max_length=30,
+    # )
+    income_percent = models.DecimalField(
+        verbose_name='Процент плановой прибыли',
+        help_text='Процент плановой прибыли для всех товаров, %',
+        max_digits=5,
+        decimal_places=1,
+        default=1
+    )
+    deal_field_code_income_res = models.CharField(
+        verbose_name='Код поля в сделки для расчета прибыли',
+        help_text='Код в сделке. При заполненности поля рассчитывается прибыль при открытии приложения.',
+        default='UF_CRM_1652693659',
         max_length=30,
     )
     is_admin_code = models.CharField(

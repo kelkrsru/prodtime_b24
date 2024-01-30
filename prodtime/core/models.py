@@ -236,6 +236,10 @@ class ProdTime(CreatedModel):
         null=True,
         blank=True
     )
+    is_change_income = models.BooleanField(
+        verbose_name='Ручное изменение прибыли',
+        default=False,
+    )
     finish = models.BooleanField(
         verbose_name='Выпуск изделия',
         default=False,

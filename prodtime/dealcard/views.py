@@ -216,16 +216,21 @@ def index(request):
                 prodtime.save()
 
         # Работа с прибылью
-            income_code = settings_portal.income_code
-            if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
-                product_value['income'] = ''
-                prodtime.income = 0
-            else:
-                income_value_per_field = product_in_catalog.properties.get(income_code)
-                income_value_per = round(decimal.Decimal(income_value_per_field.get('value')), 2)
-                income_result = round(prodtime.sum * income_value_per / 100, 2)
-                prodtime.income = income_result
-            prodtime.save()
+        if (deal_bx.properties.get(settings_portal.deal_field_code_income_res) and not prodtime.income
+                and not prodtime.is_change_income):
+            prodtime.income = round(prodtime.sum * settings_portal.income_percent / 100, 2)
+            prodtime.is_change_income = True
+
+            # income_code = settings_portal.income_code
+            # if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
+            #     product_value['income'] = ''
+            #     prodtime.income = 0
+            # else:
+            #     income_value_per_field = product_in_catalog.properties.get(income_code)
+            #     income_value_per = round(decimal.Decimal(income_value_per_field.get('value')), 2)
+            #     income_result = round(prodtime.sum * income_value_per / 100, 2)
+            #     prodtime.income = income_result
+        prodtime.save()
 
         # Работа с эквивалентом
         if prodtime.is_change_equivalent:
@@ -500,7 +505,7 @@ def create(request):
 @xframe_options_exempt
 @csrf_exempt
 def update_direct_costs(request):
-    """Метод обновления полей Прямые затраты, Нормочасы, Материалы."""
+    """Метод обновления полей Прямые затраты, Нормочасы, Материалы и пересчет Прибыли."""
     name_fields = ['direct_costs', 'standard_hours', 'materials']
 
     member_id = request.POST.get('member_id')
@@ -530,12 +535,14 @@ def update_direct_costs(request):
             else:
                 setattr(product, name_field, 0)
             setattr(product, 'is_change_' + name_field, False)
+
+        product.income = round(product.sum * settings_portal.income_percent / 100, 2)
+        product.is_change_income = True
         product.save()
 
     return JsonResponse({
         'result': 'success',
-        "info": 'Значения полей успешно обновлены из каталога товаров '
-                'Битрикс24.'
+        "info": 'Значения полей успешно обновлены из каталога товаров Битрикс24. Выполнен пересчет прибыли'
     })
 
 
@@ -852,6 +859,7 @@ def write_factory_number(request):
                         price_brutto=product.price_brutto,
                         quantity=1,
                         income=round(product.income/product.quantity, 2),
+                        is_change_income=product.is_change_income,
                         measure_code=product.measure_code,
                         measure_name=product.measure_name,
                         bonus_type_id=product.bonus_type_id,

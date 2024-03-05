@@ -240,12 +240,6 @@ class SettingsPortal(models.Model):
         default='UF_CRM_1678710729823',
         max_length=30,
     )
-    rest_api_key = models.UUIDField(
-        verbose_name='Rest api key',
-        help_text='Rest api ключ для запросов webhook от Битрикс24',
-        default=uuid.uuid4,
-        editable=False,
-    )
 
     class Meta:
         verbose_name = 'Настройка портала'

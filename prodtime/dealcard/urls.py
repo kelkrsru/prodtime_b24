@@ -17,4 +17,5 @@ urlpatterns = [
     path('export-excel/', views.export_excel, name='export-excel'),
     path('update-direct-costs/', views.update_direct_costs,
          name='update-direct-costs'),
+    path('webhook-update')
 ]

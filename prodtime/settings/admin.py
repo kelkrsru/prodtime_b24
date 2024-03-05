@@ -6,6 +6,7 @@ class SettingsPortalAdmin(admin.ModelAdmin):
     list_display = (
         'portal',
     )
+    readonly_fields = ['rest_api_key',]
 
 
 @admin.register(Numeric)

@@ -1,6 +1,7 @@
 import decimal
 
 from core.bitrix24.bitrix24 import ActivityB24, create_portal
+from core.methods import calculation_income
 from core.models import Portals
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -242,12 +243,7 @@ def update_income(request):
         return HttpResponse(status=200)
 
     settings_portal = get_object_or_404(SettingsPortal, portal=portal)
-
-    for product in prodtimes:
-        product.income = round(product.sum * settings_portal.income_percent / 100, 2)
-        product.is_change_income = True
-        product.save()
-
+    calculation_income(prodtimes, settings_portal)
     _create_response_for_bp(portal, initial_data)
     return HttpResponse(status=200)
 

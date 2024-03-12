@@ -13,7 +13,7 @@ from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
-from core.methods import initial_check, get_current_user
+from core.methods import initial_check, get_current_user, calculation_income
 from core.models import Portals, TemplateDocFields
 from dealcard.models import ProdTimeDeal
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
@@ -189,8 +189,7 @@ def index(request):
 
         # Работа с прибылью
         if not prodtime.income and not prodtime.is_change_income:
-            prodtime.income = round(prodtime.sum * settings_portal.income_percent / 100, 2)
-            prodtime.is_change_income = True
+            calculation_income(prodtime, settings_portal)
 
         # income_code = settings_portal.income_code.upper().replace('Y', 'Y_')
         # if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):

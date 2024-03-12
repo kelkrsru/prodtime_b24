@@ -16,7 +16,7 @@ from openpyxl.styles import Alignment
 from core.bitrix24.bitrix24 import (
     ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
     ProductInCatalogB24, ListB24, create_portal, UserB24)
-from core.methods import initial_check, get_current_user
+from core.methods import initial_check, get_current_user, calculation_income
 from core.models import Portals, TemplateDocFields, Responsible
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
@@ -218,8 +218,7 @@ def index(request):
         # Работа с прибылью
         if (deal_bx.properties.get(settings_portal.deal_field_code_income_res) and not prodtime.income
                 and not prodtime.is_change_income):
-            prodtime.income = round(prodtime.sum * settings_portal.income_percent / 100, 2)
-            prodtime.is_change_income = True
+            calculation_income(prodtime, settings_portal)
 
             # income_code = settings_portal.income_code
             # if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
@@ -536,9 +535,7 @@ def update_direct_costs(request):
                 setattr(product, name_field, 0)
             setattr(product, 'is_change_' + name_field, False)
 
-        product.income = round(product.sum * settings_portal.income_percent / 100, 2)
-        product.is_change_income = True
-        product.save()
+        calculation_income(product, settings_portal)
 
     return JsonResponse({
         'result': 'success',

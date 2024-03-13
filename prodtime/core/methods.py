@@ -55,3 +55,19 @@ def get_current_user(request, auth_id, portal, is_admin_code):
         'photo': user.properties[0].get('PERSONAL_PHOTO'),
         'is_admin': user.properties[0].get(is_admin_code),
     }
+
+
+def calculation_income(products, settings, is_change=True):
+    """Метод для расчета прибыли."""
+    def _calculation(prod_sum, income_percent):
+        return round(prod_sum * (1 - 1 / (1 + income_percent / 100)), 2)
+
+    if hasattr(products, '__iter__'):
+        for product in products:
+            product.income = _calculation(product.sum, settings.income_percent)
+            product.is_change_income = is_change
+            product.save()
+    else:
+        products.income = _calculation(products.sum, settings.income_percent)
+        products.is_change_income = is_change
+        products.save()

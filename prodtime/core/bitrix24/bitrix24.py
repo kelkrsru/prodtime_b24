@@ -170,6 +170,7 @@ class DealB24(ObjB24):
         self.products = None
         self.responsible = self.properties.get('ASSIGNED_BY_ID')
         self.company_id = self.properties.get('COMPANY_ID')
+        self.contact_id = self.properties.get('CONTACT_ID')
 
     def get_all_products(self):
         """Получить все продукты сделки."""
@@ -177,18 +178,26 @@ class DealB24(ObjB24):
             'crm.deal.productrows.get', {'id': self.id}
         ))
 
-    def create(self, title, stage_id, responsible_id):
+    # def create(self, title, stage_id, responsible_id):
+    #     """Создать сделку в Битрикс24"""
+    #     return self._check_error(self.bx24.call(
+    #         'crm.deal.add',
+    #         {
+    #             'fields': {
+    #                 'TITLE': title,
+    #                 'STAGE_ID': stage_id,
+    #                 'ASSIGNED_BY_ID': responsible_id,
+    #             }
+    #         }
+    #     ))
+
+    def create(self, fields):
         """Создать сделку в Битрикс24"""
-        return self._check_error(self.bx24.call(
-            'crm.deal.add',
-            {
-                'fields': {
-                    'TITLE': title,
-                    'STAGE_ID': stage_id,
-                    'ASSIGNED_BY_ID': responsible_id,
-                }
-            }
-        ))
+        return self._check_error(self.bx24.call('crm.deal.add', {'fields': fields}))
+
+    def update(self, fields):
+        """Обновить поля в сделке Битрикс24"""
+        return self._check_error(self.bx24.call('crm.deal.update', {'id': self.id, 'fields': fields}))
 
     def set_products(self, prods_rows):
         """Добавить товар в сделку в Битрикс24."""
@@ -200,19 +209,19 @@ class DealB24(ObjB24):
             }
         ))
 
-    def send_kp_numbers(self, kp_code, kp_value, kp_last_num_code,
-                        kp_last_num_value):
-        """Обновить номера КП в сделке."""
-        return self._check_error(self.bx24.call(
-            'crm.deal.update',
-            {
-                'id': self.id,
-                'fields': {
-                    kp_code: kp_value,
-                    kp_last_num_code: kp_last_num_value
-                }
-            }
-        ))
+    # def send_kp_numbers(self, kp_code, kp_value, kp_last_num_code,
+    #                     kp_last_num_value):
+    #     """Обновить номера КП в сделке."""
+    #     return self._check_error(self.bx24.call(
+    #         'crm.deal.update',
+    #         {
+    #             'id': self.id,
+    #             'fields': {
+    #                 kp_code: kp_value,
+    #                 kp_last_num_code: kp_last_num_value
+    #             }
+    #         }
+    #     ))
 
     def send_equivalent(self, code_equivalent, value_equivalent):
         """Обновить эквивалент в сделке."""
@@ -249,6 +258,25 @@ class QuoteB24(ObjB24):
         return self._check_error(self.bx24.call(
             'crm.quote.update', {'id': self.id, 'fields': fields}
         ))
+
+
+class TaskB24(ObjB24):
+    """Класс Задача Битрикс24."""
+    GET_PROPS_REST_METHOD: str = 'tasks.task.get'
+
+    def _get_properties(self):
+        """Получить свойства объекта."""
+        return self._check_error(self.bx24.call(
+            self.GET_PROPS_REST_METHOD, {'taskId': self.id, 'select': ['*', 'UF_CRM_TASK']})).get('task')
+
+    def __init__(self, portal: Portals, id_obj: int):
+        super().__init__(portal, id_obj)
+        if self.GET_PROPS_REST_METHOD and self.id:
+            self.properties = self._get_properties()
+
+    def create(self, fields):
+        """Создать задачу в Битрикс24"""
+        return self.bx24.call('tasks.task.add', {'fields': fields})
 
 
 class TemplateDocB24(ObjB24):

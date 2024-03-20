@@ -1,4 +1,5 @@
 import decimal
+import core.methods as core_methods
 
 from core.bitrix24.bitrix24 import ActivityB24, create_portal
 from core.methods import calculation_income
@@ -59,7 +60,7 @@ def send_to_db(request):
     initial_data = start_app(request)
     portal = create_portal(initial_data['member_id'])
     id_productrow, new_equivalent, new_materials, new_standard_hours, new_direct_costs, new_standard_hours_fact, \
-        new_materials_fact, new_direct_costs_fact = check_initial_data(portal, initial_data)
+    new_materials_fact, new_direct_costs_fact = check_initial_data(portal, initial_data)
     new_prodtime_str = initial_data['new_prodtime_str']
 
     prodtime = create_prodtime(portal, initial_data, id_productrow)
@@ -169,23 +170,37 @@ def update_finish(request):
 
     initial_data = _start_app(request)
     portal = create_portal(initial_data['member_id'])
+    settings_portal = get_object_or_404(SettingsPortal, portal=portal)
     object_id, finish, made = _check_initial_data(portal, initial_data)
 
-    if initial_data.get('document_type') == 'DEAL':
-        prodtimes = ProdTimeDeal.objects.filter(portal=portal, deal_id=object_id)
-    elif initial_data.get('document_type') == 'QUOTE':
-        prodtimes = ProdTimeQuote.objects.filter(portal=portal, quote_id=object_id)
-    else:
+    if initial_data.get('document_type') != 'DEAL':
         response_for_bp(
             portal,
             initial_data['event_token'], 'Неизвестный тип сущности',
-            return_values={'result': 'Error', 'msg_error': 'Активити работает только из сделки или предложения'}
+            return_values={'result': 'Error', 'msg_error': 'Активити работает только из сделки'}
         )
         return HttpResponse(status=200)
-    if finish != 'not set':
-        prodtimes.update(finish=finish)
+
+    prodtimes = ProdTimeDeal.objects.filter(portal=portal, deal_id=object_id)
+    prodtimes_id = list(prodtimes.values_list('pk', flat=True))
+    print(f'{prodtimes_id=}')
+
     if made != 'not set':
         prodtimes.update(made=made)
+    if finish and finish != 'not set':
+        result = core_methods.create_shipment_deal(portal, settings_portal, object_id, prodtimes_id)
+        if result.get('result') == 'msg':
+            response_for_bp(portal, initial_data['event_token'], 'Информация',
+                            return_values={'result': 'Error', 'msg_error': result.get('info')})
+            return HttpResponse(status=200)
+        deal_bx = result.get('info')
+        result = core_methods.create_shipment_task(portal, settings_portal, deal_bx)
+        response_for_bp(portal, initial_data['event_token'], 'Активити успешно завершило свою работу',
+                        return_values={'result': 'Success', 'msg_success':
+                        f'Успешное обновление полей для товаров сделки. {result.get("info")}'})
+        return HttpResponse(status=200)
+    elif not finish:
+        prodtimes.update(finish=finish)
 
     _create_response_for_bp(portal, initial_data)
     return HttpResponse(status=200)
@@ -343,7 +358,7 @@ def check_initial_data(portal, initial_data):
         new_materials_fact = decimal.Decimal(initial_data['new_materials_fact'])
         new_direct_costs_fact = decimal.Decimal(initial_data['new_direct_costs_fact'])
         return id_productrow, new_equivalent, new_materials, new_standard_hours, new_direct_costs, \
-            new_standard_hours_fact, new_materials_fact, new_direct_costs_fact
+               new_standard_hours_fact, new_materials_fact, new_direct_costs_fact
     except Exception as ex:
         response_for_bp(
             portal,

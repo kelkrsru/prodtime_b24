@@ -148,7 +148,7 @@ def fill_values_for_create_doc(settings, template_id, products, kp_number):
     return values
 
 
-def del_prodtime_finish_false_and_sum_equivalent(products_id):
+def del_prodtime_finish_true_and_sum_equivalent(products_id):
     """Метод для удаления объектов, у которых finish = false, а также подсчет суммарного эквивалента."""
     i = 0
     equivalent_count = decimal.Decimal(0)
@@ -168,7 +168,7 @@ def create_shipment_deal(portal, settings, deal_id, products_id):
     """Создать сделку отгрузки."""
     if not settings.create_deal:
         return {'result': 'msg', 'info': 'Создание сделки отключено в настройках. Сделка и задача не созданы.'}
-    products_id, equivalent_count = del_prodtime_finish_false_and_sum_equivalent(products_id)
+    products_id, equivalent_count = del_prodtime_finish_true_and_sum_equivalent(products_id)
     if not products_id:
         return {'result': 'msg', 'info': 'Вы не выбрали товары.'}
 

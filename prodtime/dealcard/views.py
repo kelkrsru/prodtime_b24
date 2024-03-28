@@ -1,23 +1,20 @@
 import datetime
 import decimal
+import core.methods as core_methods
 
 from typing import Dict, Any
-
 from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
-from core.bitrix24.bitrix24 import (
-    ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
-    ProductInCatalogB24, ListB24, create_portal, UserB24)
-from core.methods import initial_check, get_current_user, calculation_income
-from core.models import Portals, TemplateDocFields, Responsible
+from core.bitrix24.bitrix24 import (ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
+                                    ProductInCatalogB24, ListB24, create_portal, UserB24, TemplateDocB24)
+from core.models import Portals, Responsible
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
 
@@ -32,7 +29,7 @@ def index(request):
     title: str = 'Страница карточки сделки'
 
     try:
-        member_id, deal_id, auth_id = initial_check(request)
+        member_id, deal_id, auth_id = core_methods.initial_check(request)
     except BadRequest:
         return render(request, 'error.html', {
             'error_name': 'QueryError',
@@ -41,16 +38,14 @@ def index(request):
     portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
                                                         portal=portal)
-    user_info = get_current_user(request, auth_id, portal,
-                                 settings_portal.is_admin_code)
+    user_info = core_methods.get_current_user(request, auth_id, portal, settings_portal.is_admin_code)
     year = int(datetime.date.today().year)
     Numeric.objects.get_or_create(portal=portal, year=year,
                                   defaults={'last_number': 0})
 
     try:
-        bx24_deal = DealB24Old(deal_id, portal)
-        bx24_deal.get_deal_products()
         deal_bx = DealB24(portal, deal_id)
+        deal_bx.get_all_products()
 
         responsible_id = int(deal_bx.responsible)
         responsible_b24 = UserB24(portal, responsible_id)
@@ -64,7 +59,7 @@ def index(request):
         )
 
         deal, created = Deal.objects.get_or_create(
-            portal=portal, deal_id=bx24_deal.deal_id,
+            portal=portal, deal_id=deal_bx.id,
             defaults={'general_number': '000.'}
         )
         deal.responsible = responsible
@@ -82,7 +77,7 @@ def index(request):
         })
 
     products = []
-    for product in bx24_deal.deal_products:
+    for product in deal_bx.products:
         # Проверка, что товар является товаром каталога
         try:
             if not product['PRODUCT_ID'] or int(product['PRODUCT_ID']) <= 0:
@@ -218,7 +213,7 @@ def index(request):
         # Работа с прибылью
         if (deal_bx.properties.get(settings_portal.deal_field_code_income_res) and not prodtime.income
                 and not prodtime.is_change_income):
-            calculation_income(prodtime, settings_portal)
+            core_methods.calculation_income(prodtime, settings_portal)
 
             # income_code = settings_portal.income_code
             # if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
@@ -375,8 +370,7 @@ def update_factory_number(request):
     member_id = request.POST.get('member_id')
     value = request.POST.get('value')
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
     try:
         prodtime = ProdTimeDeal.objects.get(pk=product_id)
@@ -384,23 +378,14 @@ def update_factory_number(request):
         return JsonResponse({'result': 'error', 'info': ex.args[0]})
 
     try:
-        smart_factory_number = SmartProcessB24(
-            portal, settings_portal.smart_factory_number_id)
-        fields = {
-            'title': value,
-            settings_portal.smart_factory_number_code: value
-        }
-        result = smart_factory_number.update_element(
-            prodtime.smart_id_factory_number, fields)
+        smart_factory_number = SmartProcessB24(portal, settings_portal.smart_factory_number_id)
+        fields = {'title': value, settings_portal.smart_factory_number_code: value}
+        result = smart_factory_number.update_element(prodtime.smart_id_factory_number, fields)
 
-        if 'item' not in result or result.get('item').get(
-                settings_portal.smart_factory_number_code
-        ) != value:
-            return JsonResponse(
-                {'result': 'error',
-                 'info': f'Не удалось обновить элемент с id = '
-                         f'{prodtime.smart_id_factory_number} smart процесса '
-                         f'Заводские номера '})
+        if 'item' not in result or result.get('item').get(settings_portal.smart_factory_number_code) != value:
+            return JsonResponse({'result': 'error',
+                                 'info': f'Не удалось обновить элемент с id = {prodtime.smart_id_factory_number} '
+                                         f'smart процесса Заводские номера '})
 
         prodtime.factory_number = value
         prodtime.save()
@@ -420,85 +405,15 @@ def create(request):
     member_id = request.POST.get('member_id')
     deal_id = request.POST.get('deal_id')
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
-    if not settings_portal.create_deal:
-        return JsonResponse({
-            'result': 'nodeal',
-            "info": ('Создание сделки отключено в настройках. Сделка и задача'
-                     ' не созданы.')
-        })
+    result = core_methods.create_shipment_deal(portal, settings_portal, deal_id, products_id)
+    if result.get('result') == 'msg':
+        return JsonResponse(result)
+    deal_bx = result.get('info')
 
-    i = 0
-    equivalent_count = decimal.Decimal(0)
-    while i < len(products_id):
-        prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal,
-                                                   pk=products_id[i])
-        if prodtime.finish:
-            del products_id[i]
-        else:
-            i += 1
-            if prodtime.equivalent_count:
-                equivalent_count += prodtime.equivalent_count
-    if not products_id:
-        return JsonResponse({
-            'result': 'noproducts',
-            "info": 'Вы не выбрали товары.'
-        })
-
-    try:
-        bx24_deal = DealB24Old(deal_id, portal)
-        bx24_deal.get_deal_responsible()
-        bx24_deal.get_deal_company()
-        title_new_deal = (settings_portal.name_deal
-                          .replace('{ProductName}', '')
-                          .replace('{DealId}', str(deal_id)))
-        fields = {
-            'TITLE': title_new_deal,
-            'CATEGORY_ID': settings_portal.category_id,
-            'STAGE_ID': settings_portal.stage_code,
-            'ASSIGNED_BY_ID': bx24_deal.deal_responsible,
-            settings_portal.real_deal_code: deal_id,
-            'COMPANY_ID': bx24_deal.deal_company,
-            'CONTACT_ID': bx24_deal.deal_contact,
-            settings_portal.sum_equivalent_code: str(equivalent_count),
-        }
-        new_deal_id = bx24_deal.create_deal(fields)
-    except RuntimeError as ex:
-        return render(request, 'error.html', {
-            'error_name': ex.args[0],
-            'error_description': ex.args[1]
-        })
-
-    for product_id in products_id:
-        prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal, pk=product_id)
-        prodtime.finish = True
-        prodtime.save()
-
-        prod_row = bx24_deal.get_deal_product_by_id(prodtime.product_id_b24)
-        prod_row['ownerId'] = new_deal_id
-        del prod_row['id']
-        bx24_deal.add_deal_product(prod_row)
-
-    if not settings_portal.create_task:
-        return JsonResponse({
-            'result': 'notask',
-            "info": ('Создание задачи отключено в настройках. Сделка '
-                     'создана успешно.')
-        })
-    bx24_task = TaskB24Old(portal)
-    title_task = (settings_portal.name_task
-                  .replace('{ProductName}', '')
-                  .replace('{DealId}', str(deal_id)))
-    deadline = settings_portal.task_deadline
-    bx24_task.create_task(title_task, bx24_deal.deal_responsible,
-                          new_deal_id, deadline)
-
-    return JsonResponse({
-        'result': 'dealandtask',
-        "info": 'Сделка и задача созданы успешно.'
-    })
+    result = core_methods.create_shipment_task(portal, settings_portal, deal_bx)
+    return JsonResponse(result)
 
 
 @xframe_options_exempt
@@ -535,7 +450,7 @@ def update_direct_costs(request):
                 setattr(product, name_field, 0)
             setattr(product, 'is_change_' + name_field, False)
 
-        calculation_income(product, settings_portal)
+        core_methods.calculation_income(product, settings_portal)
 
     return JsonResponse({
         'result': 'success',
@@ -552,100 +467,23 @@ def create_doc(request):
     template_id = request.POST.get('templ_id')
     deal_id = int(request.POST.get('deal_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
-    if template_id and int(template_id) == settings_portal.template_id:
-        try:
-            deal = DealB24Old(deal_id, portal)
-            res = deal.get_deal_kp_numbers()
-            kp_code = settings_portal.kp_code
-            kp_last_num_code = settings_portal.kp_last_num_code
-            kp_numbers_deal = res[kp_code]
-            kp_numbers = kp_numbers_deal if kp_numbers_deal else []
-            last_kp_number = res[kp_last_num_code]
-            next_kp_number = int(last_kp_number) + 1 if last_kp_number else 1
-            kp_number = f'{timezone.now().year}-{deal_id}.{next_kp_number}'
-            kp_numbers.append(kp_number)
-            deal.send_kp_numbers(kp_code, kp_numbers, kp_last_num_code,
-                                 next_kp_number)
-        except RuntimeError as ex:
-            return render(request, 'error.html', {
-                'error_name': ex.args[0],
-                'error_description': ex.args[1]
-            })
-    else:
-        kp_number = ''
+    try:
+        kp_number, next_kp_number = core_methods.update_kp_numbers_in_deal_b24(portal, settings_portal, deal_id,
+                                                                               template_id)
+    except RuntimeError as ex:
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
     products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).values()
     products = sorted(products, key=lambda prod: prod.get('sort'))
-    fields = TemplateDocFields.objects.values()
-    fields = list(fields)
-    prods_for_template = list()
-    count = 1
-    for product in products:
-        prods_values = dict()
-        prods_values['ptProductNumber'] = str(count)  # code_db == None
-        prods_values['ptProductPriceBruttoSum'] = str(
-            round(product['price_brutto'] * product['quantity'], 2)
-        )  # code_db == None
-        prods_values['ptProductPriceNettoSum'] = str(
-            round(product['price_netto'] * product['quantity'], 2)
-        )  # code_db == None
-        prods_values['ptProductDiscountTotal'] = str(
-            round(product['bonus_sum'] * product['quantity'], 2)
-        )  # code_db == None
-        prods_values['ptProductDiscountTotalBrutto'] = str(
-            round(product['bonus'] * product['price_brutto']
-                  * product['quantity'] / 100, 2)
-        )  # code_db == None
-        count += 1
-        for field in fields:
-            if field['code_db'] == 'None':
-                continue
-            if field['code_db'] == 'prod_time' and product[field['code_db']]:
-                prods_values[field['code'].strip('{}')] = (
-                    product[field['code_db']].strftime('%d.%m.%Y'))
-                continue
-            if (field['code_db'] == 'prod_time'
-                    and not product[field['code_db']]):
-                prods_values[field['code'].strip('{}')] = 'Не указан'
-                continue
-            if field['code_db'] == 'count_days':
-                if not product[field['code_db']]:
-                    prods_values[field['code'].strip('{}')] = '-'
-                else:
-                    prods_values[field['code'].strip('{}')] = int(
-                        round(product['count_days'], 0))
-                continue
-            prods_values[field['code'].strip('{}')] = str(
-                product[field['code_db']])
-        prods_for_template.append(prods_values)
-
-    values = dict()
-    for field in fields:
-        field_name = field['code'].strip('{}')
-        values[field_name] = 'Table.Item.{}'.format(field_name)
-    values['ptProductNumber'] = 'Table.Item.ptProductNumber'
-    values['ptProductPriceBruttoSum'] = 'Table.Item.ptProductPriceBruttoSum'
-    values['ptProductPriceNettoSum'] = 'Table.Item.ptProductPriceNettoSum'
-    values['ptProductDiscountTotal'] = 'Table.Item.ptProductDiscountTotal'
-    values['ptProductDiscountTotalBrutto'] = (
-        'Table.Item.ptProductDiscountTotalBrutto')
-    values['TableIndex'] = 'Table.INDEX'
-    values['Table'] = prods_for_template
-    values['ptKpNumber'] = kp_number
-    if int(template_id) == settings_portal.template_id:
-        values['DocumentNumber'] = kp_number
+    values = core_methods.fill_values_for_create_doc(settings_portal, template_id, products, kp_number)
 
     try:
-        bx24_template_doc = TemplateDocB24Old(portal)
+        bx24_template_doc = TemplateDocB24(portal, 0)
         result = bx24_template_doc.create_docs(template_id, deal_id, values)
     except RuntimeError as ex:
-        return render(request, 'error.html', {
-            'error_name': ex.args[0],
-            'error_description': ex.args[1]
-        })
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
     return JsonResponse({'result': result})
 
@@ -967,16 +805,14 @@ def send_equivalent(request):
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
-    sum_equivalent = ProdTimeDeal.objects.filter(
-        portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
+    sum_equivalent = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
     if sum_equivalent['equivalent_count__sum']:
         sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
-        deal = DealB24Old(deal_id, portal)
-        deal.send_equivalent(settings_portal.sum_equivalent_code,
-                             sum_equivalent)
+        deal = DealB24(portal, deal_id)
+        fields = {settings_portal.sum_equivalent_code: sum_equivalent}
+        deal.update(fields)
 
     return JsonResponse({'result': sum_equivalent})
 
@@ -1102,167 +938,6 @@ class ObjB24Old:
             return result['result']
         else:
             raise RuntimeError('Error', 'No description error')
-
-
-class DealB24Old(ObjB24Old):
-    """Класс Сделка Битрикс24"""
-
-    def __init__(self, deal_id: int, portal: Portals):
-        super(DealB24Old, self).__init__(portal)
-        self.deal_id = deal_id
-        self.deal_products = None
-        self.deal_responsible = None
-        self.deal_company = None
-        self.deal_contact = None
-
-    def get_deal_products(self):
-        """Получить все продукты сделки"""
-
-        method_rest = 'crm.deal.productrows.get'
-        params = {'id': self.deal_id}
-        result = self.bx24.call(method_rest, params)
-        self.deal_products = self._check_error(result)
-
-    def get_deal_product_by_id(self, product_id):
-        """Получить продукт сделки Битрикс24 по ID"""
-
-        method_rest = 'crm.item.productrow.get'
-        params = {'id': product_id}
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)['productRow']
-
-    def get_deal_responsible(self):
-        """Получить ответственного за сделку."""
-
-        method_rest = 'crm.deal.get'
-        params = {'id': self.deal_id}
-        result = self.bx24.call(method_rest, params)
-        self.deal_responsible = self._check_error(result)['ASSIGNED_BY_ID']
-
-    def get_deal_company(self):
-        """Получить компанию сделки."""
-
-        method_rest = 'crm.deal.get'
-        params = {'id': self.deal_id}
-        result = self.bx24.call(method_rest, params)
-        self.deal_company = self._check_error(result)['COMPANY_ID']
-        self.deal_contact = self._check_error(result)['CONTACT_ID']
-
-    def get_deal_kp_numbers(self):
-        """Получить нумерацию по КП сделки."""
-
-        method_rest = 'crm.deal.get'
-        params = {'id': self.deal_id}
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)
-
-    def create_deal(self, fields):
-        """Создать сделку в Битрикс24"""
-
-        method_rest = 'crm.deal.add'
-        result = self.bx24.call(method_rest, {'fields': fields})
-        return self._check_error(result)
-
-    def add_deal_product(self, prod_row):
-        """Добавить товар в сделку в Битрикс24"""
-
-        method_rest = 'crm.item.productrow.add'
-        params = {
-            'fields': prod_row
-        }
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)
-
-    def send_equivalent(self, code_equivalent, value_equivalent):
-        """Обновить эквивалент в сделке."""
-
-        method_rest = 'crm.deal.update'
-        params = {
-            'id': self.deal_id,
-            'fields': {
-                code_equivalent: value_equivalent
-            }
-        }
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)
-
-    def send_kp_numbers(self, kp_code, kp_value, kp_last_num_code,
-                        kp_last_num_value):
-        """Обновить номера КП в сделке."""
-
-        method_rest = 'crm.deal.update'
-        params = {
-            'id': self.deal_id,
-            'fields': {
-                kp_code: kp_value,
-                kp_last_num_code: kp_last_num_value
-            }
-        }
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)
-
-
-class TemplateDocB24Old(ObjB24Old):
-    """Класс Шаблоны и Документы Битрикс24"""
-
-    def get_all_templates(self):
-        """Получить список всех шаблонов"""
-
-        method_rest = 'crm.documentgenerator.template.list'
-        params = {
-            'filter': {
-                'active': 'Y',
-                'entityTypeId': '2%'
-            }
-        }
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)
-
-    def create_docs(self, template_id, deal_id, values):
-        """Сформировать документ по шаблону"""
-
-        method_rest = 'crm.documentgenerator.document.add'
-        params = {
-            'templateId': template_id,
-            'entityTypeId': '2',
-            'entityId': deal_id,
-            'values': values,
-            'fields': {
-                'Table': {
-                    'PROVIDER': ('Bitrix\\DocumentGenerator\\DataProvider\\'
-                                 'ArrayDataProvider'),
-                    'OPTIONS': {
-                        'ITEM_NAME': 'Item',
-                        'ITEM_PROVIDER': ('Bitrix\\DocumentGenerator\\'
-                                          'DataProvider\\HashDataProvider'),
-                    }
-                }
-            }
-        }
-        result = self.bx24.call(method_rest, params)
-        return self._check_error(result)
-
-
-class TaskB24Old(ObjB24Old):
-    """Класс Задача Битрикс24."""
-
-    def create_task(self, title, responsible_id, deal_id, deadline):
-        """Создать задачу в Битрикс24"""
-
-        deadline = timezone.now() + timezone.timedelta(days=deadline)
-
-        method_rest = 'tasks.task.add'
-        params = {
-            'fields': {
-                'TITLE': title,
-                'RESPONSIBLE_ID': responsible_id,
-                'UF_CRM_TASK': [f'D_{deal_id}'],
-                'DEADLINE': deadline.isoformat(),
-                'MATCH_WORK_TIME': 'Y',
-            }
-        }
-        result = self.bx24.call(method_rest, params)
-        return result
 
 
 class ProductB24Old(ObjB24Old):

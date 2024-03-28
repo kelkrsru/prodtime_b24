@@ -1,5 +1,6 @@
 import datetime
 import decimal
+import core.methods as core_methods
 
 from typing import Dict, Any
 
@@ -8,13 +9,12 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
 from core.methods import initial_check, get_current_user, calculation_income
-from core.models import Portals, TemplateDocFields
+from core.models import Portals
 from dealcard.models import ProdTimeDeal
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from .models import ProdTimeQuote
@@ -301,106 +301,27 @@ def create_doc(request):
     quote_id = int(request.POST.get('quote_id'))
     deal_id = int(request.POST.get('deal_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
-    if int(template_id) == settings_portal.template_id:
-        try:
-            deal = DealB24(portal, deal_id)
-            kp_code = settings_portal.kp_code
-            kp_last_num_code = settings_portal.kp_last_num_code
-            kp_numbers_deal = deal.properties.get(kp_code)
-            kp_numbers = kp_numbers_deal if kp_numbers_deal else []
-            last_kp_number = deal.properties.get(kp_last_num_code)
-            next_kp_number = int(last_kp_number) + 1 if last_kp_number else 1
-            kp_number = f'{timezone.now().year}-{deal_id}.{next_kp_number}'
-            kp_numbers.append(kp_number)
-            deal.send_kp_numbers(kp_code, kp_numbers, kp_last_num_code,
-                                 next_kp_number)
-        except RuntimeError as ex:
-            return render(request, 'error.html', {
-                'error_name': ex.args[0],
-                'error_description': ex.args[1]
-            })
-    else:
-        kp_number = ''
-        next_kp_number = 0
+    try:
+        kp_number, next_kp_number = core_methods.update_kp_numbers_in_deal_b24(portal, settings_portal, deal_id,
+                                                                               template_id)
+    except RuntimeError as ex:
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
-    products = ProdTimeQuote.objects.filter(portal=portal,
-                                            quote_id=quote_id).values()
+    products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id).values()
     products = sorted(products, key=lambda prod: prod.get('sort'))
-    fields = TemplateDocFields.objects.values()
-    fields = list(fields)
-    prods_for_template = list()
-    count = 1
-    for product in products:
-        prods_values = dict()
-        prods_values['ptProductNumber'] = str(count)  # code_db == None
-        prods_values['ptProductPriceBruttoSum'] = str(
-            round(product['price_brutto'] * product['quantity'], 2)
-        )  # code_db == None
-        prods_values['ptProductPriceNettoSum'] = str(
-            round(product['price_netto'] * product['quantity'], 2)
-        )  # code_db == None
-        prods_values['ptProductDiscountTotal'] = str(
-            round(product['bonus_sum'] * product['quantity'], 2)
-        )  # code_db == None
-        prods_values['ptProductDiscountTotalBrutto'] = str(
-            round(product['bonus'] * product['price_brutto']
-                  * product['quantity'] / 100, 2)
-        )  # code_db == None
-        count += 1
-        for field in fields:
-            if field['code_db'] == 'None':
-                continue
-            if field['code_db'] == 'prod_time' and product[field['code_db']]:
-                prods_values[field['code'].strip('{}')] = (
-                    product[field['code_db']].strftime('%d.%m.%Y'))
-                continue
-            if (field['code_db'] == 'prod_time'
-                    and not product[field['code_db']]):
-                prods_values[field['code'].strip('{}')] = 'Не указан'
-                continue
-            if field['code_db'] == 'count_days':
-                if not product[field['code_db']]:
-                    prods_values[field['code'].strip('{}')] = '-'
-                else:
-                    prods_values[field['code'].strip('{}')] = int(
-                        round(product['count_days'], 0))
-                continue
-            prods_values[field['code'].strip('{}')] = str(
-                product[field['code_db']])
-        prods_for_template.append(prods_values)
-
-    values = dict()
-    for field in fields:
-        field_name = field['code'].strip('{}')
-        values[field_name] = 'Table.Item.{}'.format(field_name)
-    values['ptProductNumber'] = 'Table.Item.ptProductNumber'
-    values['ptProductPriceBruttoSum'] = 'Table.Item.ptProductPriceBruttoSum'
-    values['ptProductPriceNettoSum'] = 'Table.Item.ptProductPriceNettoSum'
-    values['ptProductDiscountTotal'] = 'Table.Item.ptProductDiscountTotal'
-    values['ptProductDiscountTotalBrutto'] = (
-        'Table.Item.ptProductDiscountTotalBrutto')
-    values['TableIndex'] = 'Table.INDEX'
-    values['Table'] = prods_for_template
-    values['ptKpNumber'] = kp_number
-    if int(template_id) == settings_portal.template_id:
-        values['DocumentNumber'] = kp_number
+    values = core_methods.fill_values_for_create_doc(settings_portal, template_id, products, kp_number)
 
     try:
         bx24_template_doc = TemplateDocB24(portal, 0)
-        result = bx24_template_doc.create_docs(template_id, quote_id, values,
-                                               parent='quote')
+        result = bx24_template_doc.create_docs(template_id, quote_id, values, parent='quote')
         if next_kp_number:
             quote = QuoteB24(portal, quote_id)
             fields = {'UF_CRM_62D8007A7602C': next_kp_number}
             quote.update(fields)
     except RuntimeError as ex:
-        return render(request, 'error.html', {
-            'error_name': ex.args[0],
-            'error_description': ex.args[1]
-        })
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
     return JsonResponse({'result': result})
 

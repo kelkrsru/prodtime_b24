@@ -37,8 +37,12 @@ def report_deals(request):
                                      direct_costs * 100, 2)
         else:
             direct_costs_div = str_blank
-        direct_costs_sum = round(direct_costs_fact * prodtime.tax *
-                                 prodtime.quantity, 2)
+        if direct_costs_fact:
+            direct_costs_sum = round((direct_costs_fact + direct_costs_fact * prodtime.tax / 100) * prodtime.quantity, 2)
+        elif direct_costs:
+            direct_costs_sum = round((direct_costs + direct_costs * prodtime.tax / 100) * prodtime.quantity, 2)
+        else:
+            direct_costs_sum = 0
 
         standard_hours = (prodtime_db.standard_hours if
                           prodtime_db.standard_hours else str_blank)

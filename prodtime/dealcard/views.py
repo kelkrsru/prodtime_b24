@@ -1,5 +1,9 @@
 import datetime
 import decimal
+
+from rest_framework import viewsets
+from django_filters.rest_framework import DjangoFilterBackend
+
 import core.methods as core_methods
 
 from typing import Dict, Any
@@ -15,6 +19,7 @@ from openpyxl.styles import Alignment
 from core.bitrix24.bitrix24 import (ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
                                     ProductInCatalogB24, ListB24, create_portal, UserB24, TemplateDocB24)
 from core.models import Portals, Responsible
+from dealcard.serializers import ProdTimeDealSerializer
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
 
@@ -920,6 +925,26 @@ def export_excel(request):
     workbook.save(response)
 
     return response
+
+
+class ProdTimeDealViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ProdTimeDeal.objects.all()
+    serializer_class = ProdTimeDealSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = {
+        'deal_id': ['exact'],
+        'updated': ['gte', 'lte', 'exact', 'gt', 'lt'],
+        'portal': ['exact'],
+    }
+
+    # def get_queryset(self):
+    #     pk = self.kwargs.get("pk") if 'pk' in self.kwargs else None
+    #     queryset = ProdTimeDeal.objects.all()
+    #
+    #     if pk:
+    #         return ProdTimeDeal.objects.filter(pk=pk)
+    #
+    #     return queryset
 
 
 class ObjB24Old:

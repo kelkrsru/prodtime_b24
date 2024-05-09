@@ -71,8 +71,10 @@ def report_deals(request):
         equivalent = prodtime.equivalent
         sum_equivalent = prodtime.equivalent_count
         margin = round(sum_price - direct_costs_sum, 2)
-        effectiveness = round((sum_price - direct_costs_sum) / sum_price
-                              * 100, 2)
+        try:
+            effectiveness = round((sum_price - direct_costs_sum) / sum_price * 100, 2)
+        except Exception:
+            effectiveness = 0
 
         return {
             'direct_costs': direct_costs,

@@ -610,6 +610,7 @@ def copy_products(request):
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'N'
             product_in_catalog.properties[settings_portal.article_code] = article
         del product_in_catalog.properties['id']
+        product_in_catalog.check_and_update_properties()
         try:
             new_id_product_in_catalog = product_in_catalog.add().get('element').get('id')
             product_row.properties['productId'] = new_id_product_in_catalog

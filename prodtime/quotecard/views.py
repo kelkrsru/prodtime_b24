@@ -1,5 +1,7 @@
 import datetime
 import decimal
+from pprint import pprint
+
 import core.methods as core_methods
 
 from typing import Dict, Any
@@ -457,6 +459,9 @@ def create_articles(request):
             product_in_catalog.properties[
                 settings_portal.article_code] = article
         del product_in_catalog.properties['id']
+
+        product_in_catalog.check_and_update_properties()
+
         try:
             new_id_product_in_catalog = product_in_catalog.add().get(
                 'element').get('id')

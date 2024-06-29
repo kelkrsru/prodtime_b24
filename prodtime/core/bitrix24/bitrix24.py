@@ -417,6 +417,12 @@ class ProductInCatalogB24(ObjB24):
             products += result.get('result').get('products')
         return products
 
+    def check_and_update_properties(self):
+        """Метод, который исправляет property типа str на dict"""
+        for key, value in self.properties.items():
+            if 'property' in key and isinstance(value, str):
+                self.properties[key] = {'value': value}
+
 
 class ProductRowB24(ObjB24):
     """Класс Товарной позиции."""

@@ -241,7 +241,7 @@ def report_deals(request):
         }
     }
     if filter_date == 'ufCrm1652693659':
-        filter_for_deal['ufCrm1661330774842'] = 1
+        filter_for_deal['ufCrm_1661330774842'] = 1
     if stages_deals != 'A':
         filter_for_deal['StageSemanticId'] = stages_deals
     deals = ListEntitiesB24(portal, filter_for_deal, 'item', ['id'])

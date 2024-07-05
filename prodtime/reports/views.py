@@ -71,6 +71,7 @@ def report_deals(request):
         equivalent = prodtime.equivalent
         sum_equivalent = prodtime.equivalent_count
         margin = round(sum_price - direct_costs_sum, 2)
+        factory_number = prodtime_db.factory_number if prodtime_db.factory_number else ''
         try:
             effectiveness = round((sum_price - direct_costs_sum) / sum_price * 100, 2)
         except Exception:
@@ -93,7 +94,8 @@ def report_deals(request):
             'sum_equivalent': sum_equivalent,
             'margin': margin,
             'effectiveness': effectiveness,
-            'income': income
+            'income': income,
+            'factory_number': factory_number
         }
 
     def _get_result_for_products(products_list):

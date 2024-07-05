@@ -83,6 +83,7 @@
         <thead>
           <tr>
             <th>Товар</th>
+            <th>Заводской номер</th>
             {% if show_parent_dir == 'on' %}
               <th>Папка товара по каталогу</th>
             {% endif %}
@@ -115,6 +116,7 @@
           {% for product in products %}
             <tr>
             <td>{{ product.productName }}</td>
+            <td>{{ product.factory_number }}</td>
             {% if show_parent_dir == 'on' %}
               <td>{{ product.section_name }}</td>
             {% endif %}
@@ -146,6 +148,7 @@
         </tbody>
         <tfoot>
           <tr>
+            <th></th>
             {% if show_parent_dir == 'on' %}
               <th></th>
             {% endif %}

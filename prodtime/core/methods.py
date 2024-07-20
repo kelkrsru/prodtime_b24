@@ -151,9 +151,9 @@ def fill_values_for_create_doc(settings, template_id, products, kp_number):
 def del_prodtime_finish_true_and_sum_equivalent(products_id):
     """Метод для удаления объектов, у которых finish = false, а также подсчет суммарных значений заданных полей."""
     i = 0
-    name_fields = ['equivalent_count', 'direct_costs', 'direct_costs_fact',]
+    name_fields = {'equivalent_count': 0, 'direct_costs': 1, 'direct_costs_fact': 1}
     sum_values = {}
-    for name_field in name_fields:
+    for name_field in name_fields.keys():
         sum_values[name_field + '_sum'] = decimal.Decimal(0)
 
     while i < len(products_id):
@@ -162,10 +162,13 @@ def del_prodtime_finish_true_and_sum_equivalent(products_id):
             del products_id[i]
         else:
             i += 1
-            for name_field in name_fields:
+            for name_field, count in name_fields.items():
                 if getattr(prodtime, name_field):
                     key = name_field + '_sum'
-                    sum_values[key] += getattr(prodtime, name_field)
+                    if count:
+                        sum_values[key] += getattr(prodtime, name_field) * prodtime.quantity
+                    else:
+                        sum_values[key] += getattr(prodtime, name_field)
 
     return products_id, sum_values
 

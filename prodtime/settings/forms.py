@@ -8,9 +8,8 @@ class SettingsDealPortalForm(forms.ModelForm):
 
     class Meta:
         model = SettingsPortal
-        fields = ('create_deal', 'name_deal', 'category_id', 'stage_code',
-                  'real_deal_code', 'create_task', 'name_task',
-                  'task_deadline',)
+        fields = ('create_deal', 'name_deal', 'category_id', 'stage_code', 'real_deal_code', 'sum_direct_costs_code',
+                  'sum_direct_costs_fact_code' ,'create_task', 'name_task', 'task_deadline',)
 
 
 class SettingsEquivalentPortalForm(forms.ModelForm):

@@ -94,6 +94,18 @@ class SettingsPortal(models.Model):
         default='UF_CRM_0000000000',
         max_length=30,
     )
+    sum_direct_costs_code = models.CharField(
+        verbose_name='Код поля Сумма прямых затрат',
+        help_text='Код поля Сумма прямых затрат в сделке',
+        default='UF_CRM_0000000000',
+        max_length=30,
+    )
+    sum_direct_costs_fact_code = models.CharField(
+        verbose_name='Код поля Сумма фактических затрат',
+        help_text='Код поля Сумма фактических затрат в сделке',
+        default='UF_CRM_0000000000',
+        max_length=30,
+    )
     template_id = models.PositiveIntegerField(
         verbose_name='ID шаблона КП',
         help_text='ID шаблона коммерческого предложения',

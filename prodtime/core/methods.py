@@ -149,26 +149,32 @@ def fill_values_for_create_doc(settings, template_id, products, kp_number):
 
 
 def del_prodtime_finish_true_and_sum_equivalent(products_id):
-    """Метод для удаления объектов, у которых finish = false, а также подсчет суммарного эквивалента."""
+    """Метод для удаления объектов, у которых finish = false, а также подсчет суммарных значений заданных полей."""
     i = 0
-    equivalent_count = decimal.Decimal(0)
+    name_fields = ['equivalent_count', 'direct_costs', 'direct_costs_fact',]
+    sum_values = {}
+    for name_field in name_fields:
+        sum_values[name_field + '_sum'] = decimal.Decimal(0)
+
     while i < len(products_id):
         prodtime = ProdTimeDeal.objects.get(pk=products_id[i])
         if prodtime.finish:
             del products_id[i]
         else:
             i += 1
-            if prodtime.equivalent_count:
-                equivalent_count += prodtime.equivalent_count
+            for name_field in name_fields:
+                if getattr(prodtime, name_field):
+                    key = name_field + '_sum'
+                    sum_values[key] += getattr(prodtime, name_field)
 
-    return products_id, equivalent_count
+    return products_id, sum_values
 
 
 def create_shipment_deal(portal, settings, deal_id, products_id):
     """Создать сделку отгрузки."""
     if not settings.create_deal:
         return {'result': 'msg', 'info': 'Создание сделки отключено в настройках. Сделка и задача не созданы.'}
-    products_id, equivalent_count = del_prodtime_finish_true_and_sum_equivalent(products_id)
+    products_id, sum_values = del_prodtime_finish_true_and_sum_equivalent(products_id)
     if not products_id:
         return {'result': 'msg', 'info': 'Вы не выбрали товары.'}
 
@@ -182,11 +188,13 @@ def create_shipment_deal(portal, settings, deal_id, products_id):
             settings.real_deal_code: deal_id,
             'COMPANY_ID': deal_bx.company_id,
             'CONTACT_ID': deal_bx.contact_id,
-            settings.sum_equivalent_code: str(equivalent_count),
+            settings.sum_equivalent_code: str(sum_values.get('equivalent_count_sum')),
+            settings.sum_direct_costs_code: str(sum_values.get('direct_costs_sum')),
+            settings.sum_direct_costs_fact_code: str(sum_values.get('direct_costs_fact_sum')),
         }
         new_deal_id = deal_bx.create(fields)
     except RuntimeError as ex:
-        return {'result': 'msg', 'info': f'Ошибка: {ex.args[0]}, Описание ошибки: ex.args[1]'}
+        return {'result': 'msg', 'info': f'Ошибка: {ex.args[0]}, Описание ошибки: {ex.args[1]}'}
 
     for product_id in products_id:
         prodtime = ProdTimeDeal.objects.get(pk=product_id)

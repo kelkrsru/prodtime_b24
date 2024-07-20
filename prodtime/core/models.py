@@ -214,14 +214,14 @@ class ProdTime(CreatedModel):
     equivalent = models.DecimalField(
         verbose_name='Эквивалент',
         max_digits=12,
-        decimal_places=3,
+        decimal_places=4,
         null=True,
         blank=True,
     )
     equivalent_count = models.DecimalField(
         verbose_name='Эквивалент с учетом количества',
         max_digits=12,
-        decimal_places=3,
+        decimal_places=4,
         null=True,
         blank=True,
     )

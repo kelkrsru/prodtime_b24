@@ -1,0 +1,12 @@
+{% extends 'page_form.html' %}
+
+{% block title %}Настройки отчета по Остаткам{% endblock %}
+{% block card_footer %}
+  <div class="card-footer">
+    <div class="col d-flex align-items-end justify-content-end">
+      <input type="text" name='member_id' value="{{ member_id }}" hidden>
+      <a href="{% url 'settings:index' %}?member_id={{ member_id }}&back_to_settings='true'" class="btn btn-outline-primary me-2">Вернуться к настройкам</a>
+      <button type="submit" class="btn btn-success">Сохранить</button>
+    </div>
+  </div>
+{% endblock %}

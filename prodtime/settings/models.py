@@ -261,6 +261,78 @@ class SettingsPortal(models.Model):
         return 'Настройки для портала {}'.format(self.portal.name)
 
 
+class SettingsForReportStock(models.Model):
+    """Модель настроек для отчета по остаткам"""
+    class ColorBackground(models.TextChoices):
+        PRIMARY = 'bg-primary', 'Синий'
+        SECONDARY = 'bg-secondary', 'Серый'
+        SUCCESS = 'bg-success', 'Зеленый'
+        DANGER = 'bg-danger', 'Красный'
+        DARK = 'bg-dark', 'Черный'
+
+    portal = models.OneToOneField(
+        Portals,
+        verbose_name='Портал',
+        related_name='settings_for_report_stock',
+        on_delete=models.CASCADE,
+    )
+    min_stock_code = models.CharField(
+        verbose_name='Код свойства Минимальный остаток',
+        help_text='Код свойства Минимальный остаток в каталоге товаров. Код, который отдает метод '
+                  '"catalog.product.get"',
+        default='property00',
+        max_length=30,
+    )
+    create_task = models.BooleanField(
+        verbose_name='Создавать задачу',
+        help_text='Создавать задачу при достижении минимального остатка',
+        default=True,
+    )
+    name_task = models.CharField(
+        verbose_name='Наименование задачи',
+        help_text='Наименование создаваемой задачи при достижении минимального остатка',
+        max_length=255,
+        default='Новая задача',
+    )
+    text_task = models.TextField(
+        verbose_name='Текст задачи',
+        help_text='Текст создаваемой задачи при достижении минимального остатка',
+    )
+    task_deadline = models.IntegerField(
+        verbose_name='Крайний срок задачи',
+        help_text='Количество дней от текущей даты для крайнего срока задачи',
+        default=3,
+    )
+    task_responsible_code = models.CharField(
+        verbose_name='Код свойства ответственного',
+        help_text='Код свойства товара в каталоге товаров, из которого берется ID ответственного за создаваемую задачу',
+        default='property00',
+        max_length=30,
+    )
+    task_id_code = models.CharField(
+        verbose_name='Код свойства ID задачи',
+        help_text='Код свойства ID задачи в каталоге товаров, в которое записывается ID созданной задачи',
+        default='property00',
+        max_length=30,
+    )
+    background_row = models.CharField(
+        'Цвет выделения строк',
+        help_text='Цвет выделения строк, у которых достигнуто значение минимального остатка',
+        max_length=30,
+        choices=ColorBackground.choices,
+        default=ColorBackground.DANGER
+    )
+
+    class Meta:
+        verbose_name = 'Настройка для отчета по Остаткам'
+        verbose_name_plural = 'Настройки для отчета по Остаткам'
+
+        ordering = ['portal', 'pk']
+
+    def __str__(self):
+        return f'Настройки отчета по Остаткам для портала {self.portal.name}'
+
+
 class Numeric(models.Model):
     """Модель настроек нумерации внутри года."""
 

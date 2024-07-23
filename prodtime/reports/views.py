@@ -360,3 +360,71 @@ def report_production(request):
         'responsibles': responsibles
     }
     return render(request, template, context)
+
+
+@xframe_options_exempt
+@csrf_exempt
+def report_stock(request):
+    """Метод отчета Остатки на складе."""
+    template: str = 'reports/report_stock.html'
+    title: str = 'Отчеты'
+
+    if request.method == 'POST':
+        member_id = request.POST.get('member_id')
+    elif request.method == 'GET':
+        member_id = request.GET.get('member_id')
+    else:
+        return render(request, 'error.html', {
+            'error_name': 'QueryError',
+            'error_description': 'Неизвестный тип запроса'
+        })
+    portal: Portals = create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
+    user_info = get_current_user(request, '', portal, settings_portal.is_admin_code)
+
+    form = ReportProductionForm(request.POST or None)
+
+    context = {
+        'title': title,
+        'member_id': member_id,
+        'form': form,
+        'user': user_info
+    }
+    if not form.is_valid():
+        return render(request, template, context)
+
+    start_date = request.POST.get('start_date')
+    end_date = request.POST.get('end_date')
+    show_finish = form.cleaned_data['show_finish']
+    show_made = form.cleaned_data['show_made']
+    responsible = form.cleaned_data['responsible']
+
+    prodtimes = ProdTimeDeal.objects.filter(prod_time__range=[start_date, end_date])
+    if show_made:
+        prodtimes = prodtimes.filter(made=show_made)
+    if show_finish:
+        prodtimes = prodtimes.filter(finish=show_finish)
+    if responsible:
+        deals_ids = Deal.objects.filter(responsible=responsible).values_list('deal_id', flat=True)
+        prodtimes = prodtimes.filter(deal_id__in=deals_ids)
+
+    deals = Deal.objects.all()
+    invoices = {deal.deal_id: deal.invoice_number for deal in deals}
+    responsibles = {deal.deal_id: deal.responsible.get_full_name() if deal.responsible else '' for deal in deals}
+
+    results = {
+        'quantity_sum': str(prodtimes.aggregate(Sum('quantity')).get('quantity__sum')),
+        'sum_sum': str(prodtimes.aggregate(Sum('sum')).get('sum__sum')),
+    }
+
+    context = {
+        'title': title,
+        'member_id': member_id,
+        'form': form,
+        'user': user_info,
+        'prodtimes': prodtimes,
+        'results': results,
+        'invoices': invoices,
+        'responsibles': responsibles
+    }
+    return render(request, template, context)

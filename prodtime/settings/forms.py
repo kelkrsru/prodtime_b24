@@ -1,6 +1,15 @@
 from django import forms
 
-from .models import SettingsPortal
+from .models import SettingsPortal, SettingsForReportStock
+
+
+class SettingsForReportStockForm(forms.ModelForm):
+    """Форма Настроек отчета по Остаткам."""
+
+    class Meta:
+        model = SettingsForReportStock
+        fields = ('min_stock_code', 'create_task', 'name_task', 'text_task', 'task_deadline', 'task_responsible_code',
+                  'task_id_code', 'background_row')
 
 
 class SettingsDealPortalForm(forms.ModelForm):

@@ -276,6 +276,11 @@ class SettingsForReportStock(models.Model):
         related_name='settings_for_report_stock',
         on_delete=models.CASCADE,
     )
+    stock_id = models.PositiveSmallIntegerField(
+        'ID склада',
+        help_text='ID склада для работы отчета',
+        default=1,
+    )
     min_stock_code = models.CharField(
         verbose_name='Код свойства Минимальный остаток',
         help_text='Код свойства Минимальный остаток в каталоге товаров. Код, который отдает метод '
@@ -297,6 +302,7 @@ class SettingsForReportStock(models.Model):
     text_task = models.TextField(
         verbose_name='Текст задачи',
         help_text='Текст создаваемой задачи при достижении минимального остатка',
+        blank=True,
     )
     task_deadline = models.IntegerField(
         verbose_name='Крайний срок задачи',

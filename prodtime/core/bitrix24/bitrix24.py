@@ -1,7 +1,9 @@
 import datetime
+import itertools
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+
 from core.models import Portals
 from pybitrix24 import Bitrix24
 
@@ -59,7 +61,8 @@ class ListEntitiesB24(ObjB24):
     """Класс для получения множества сущностей по фильтру."""
     TYPE_ENTITY = {
         'deal': 'crm.deal.list',
-        'item': 'crm.item.list'
+        'item': 'crm.item.list',
+        'store': 'catalog.storeproduct.list',
     }
 
     def __init__(self, portal: Portals, filter_entity: dict, type_entity: str,
@@ -68,8 +71,12 @@ class ListEntitiesB24(ObjB24):
         self.select_entity = ['*'] if select_entity is None else select_entity
         self.filter = filter_entity
         self.method = self.TYPE_ENTITY.get(type_entity)
-        self.entities = (self.get_items_filter_no_start() if
-                         type_entity == 'item' else self.get_entities_filter())
+        if type_entity == 'item':
+            self.entities = self.get_items_filter_no_start()
+        elif type_entity == 'deal':
+            self.entities = self.get_entities_filter()
+        elif type_entity == 'store':
+            self.entities = self.get_store_products_filter_no_start()
 
     def get_entities_filter(self):
         """Получить сущности по фильтру."""
@@ -107,9 +114,7 @@ class ListEntitiesB24(ObjB24):
 
         while not finish:
             self.filter['>id'] = deal_id
-            result = self.bx24.call(self.method, {'entityTypeId': 2,
-                                                  'filter': self.filter,
-                                                  'order': {'id': 'ASC'},
+            result = self.bx24.call(self.method, {'entityTypeId': 2, 'filter': self.filter, 'order': {'id': 'ASC'},
                                                   'start': -1})
             if result.get('result').get('items'):
                 deal_id = result.get('result').get('items')[-1].get('id')
@@ -118,6 +123,55 @@ class ListEntitiesB24(ObjB24):
                 finish = True
 
         return deals
+
+    def get_store_products_filter_no_start(self):
+        """Получить сущности по фильтру для store."""
+        store_id = 0
+        finish = False
+        store_products = []
+
+        while not finish:
+            self.filter['>id'] = store_id
+            result = self.bx24.call(self.method, {'select': self.select_entity, 'filter': self.filter,
+                                                  'order': {'id': 'ASC'}, 'start': -1})
+            if result.get('result').get('storeProducts'):
+                store_id = result.get('result').get('storeProducts')[-1].get('id')
+                store_products += result.get('result').get('storeProducts')
+            else:
+                finish = True
+
+        return store_products
+
+
+class BatchB24(ObjB24):
+    """Класс для формирования batch запросов к Б24."""
+
+    def __init__(self, portal: Portals, queries: dict):
+        super().__init__(portal, 0)
+        self.queries = queries  # queries - это уже готовый словарь запросов
+        self.results = self.call_batch()
+
+    @staticmethod
+    def _check_error(result):
+        if 'error' in result.get('result'):
+            raise RuntimeError(result.get('result').get('error'), result.get('result').get('error_description'))
+        elif 'result' in result.get('result'):
+            return result.get('result').get('result')
+        else:
+            raise RuntimeError('Error', 'No description error')
+
+    @staticmethod
+    def split_dict(dictionary, n):
+        """Разделить словарь на несколько словарей по кол-ву элементов. Результат вернуть в виде списка словарей."""
+        return [dict(itertools.islice(dictionary.items(), i, i + n)) for i in range(0, len(dictionary), n)]
+
+    def call_batch(self):
+        queries_list = self.split_dict(self.queries, 49)
+        general_result = []
+        for queries in queries_list:
+            result = self._check_error(self.bx24.call_batch(queries)).values()
+            general_result += result
+        return general_result
 
 
 class ListProductRowsB24(ObjB24):
@@ -178,19 +232,6 @@ class DealB24(ObjB24):
             'crm.deal.productrows.get', {'id': self.id}
         ))
 
-    # def create(self, title, stage_id, responsible_id):
-    #     """Создать сделку в Битрикс24"""
-    #     return self._check_error(self.bx24.call(
-    #         'crm.deal.add',
-    #         {
-    #             'fields': {
-    #                 'TITLE': title,
-    #                 'STAGE_ID': stage_id,
-    #                 'ASSIGNED_BY_ID': responsible_id,
-    #             }
-    #         }
-    #     ))
-
     def create(self, fields):
         """Создать сделку в Битрикс24"""
         return self._check_error(self.bx24.call('crm.deal.add', {'fields': fields}))
@@ -208,20 +249,6 @@ class DealB24(ObjB24):
                 'rows': prods_rows,
             }
         ))
-
-    # def send_kp_numbers(self, kp_code, kp_value, kp_last_num_code,
-    #                     kp_last_num_value):
-    #     """Обновить номера КП в сделке."""
-    #     return self._check_error(self.bx24.call(
-    #         'crm.deal.update',
-    #         {
-    #             'id': self.id,
-    #             'fields': {
-    #                 kp_code: kp_value,
-    #                 kp_last_num_code: kp_last_num_value
-    #             }
-    #         }
-    #     ))
 
     def send_equivalent(self, code_equivalent, value_equivalent):
         """Обновить эквивалент в сделке."""

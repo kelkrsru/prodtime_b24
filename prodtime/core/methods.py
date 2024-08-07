@@ -10,14 +10,25 @@ from core.models import TemplateDocFields
 from dealcard.models import ProdTimeDeal
 
 
+def check_request(request):
+    """Метод проверки на тип запроса."""
+    if request.method == 'POST':
+        member_id = request.POST.get('member_id')
+    elif request.method == 'GET':
+        member_id = request.GET.get('member_id')
+    else:
+        raise BadRequest
+
+    return member_id
+
+
 def initial_check(request, entity_type='deal_id'):
     """Метод начальной проверки на тип запроса."""
     auth_id = ''
 
     if request.method == 'POST':
         member_id: str = request.POST['member_id']
-        entity_id: int = int(json.loads(
-            request.POST['PLACEMENT_OPTIONS'])['ID'])
+        entity_id: int = int(json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
         if 'AUTH_ID' in request.POST:
             auth_id: str = request.POST.get('AUTH_ID')
     elif request.method == 'GET':

@@ -1,6 +1,6 @@
 import decimal
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -8,12 +8,13 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.bitrix24.bitrix24 import (create_portal, ListEntitiesB24,
                                     ListProductRowsB24, ProductInCatalogB24,
-                                    CatalogSectionB24)
-from core.methods import get_current_user
+                                    CatalogSectionB24, BatchB24)
+from core.methods import get_current_user, check_request
 from core.models import Portals
 from dealcard.models import ProdTimeDeal, Deal
+from reports.ReportProdtime import ReportStock
 from reports.forms import ReportDealsForm, ReportProductionForm
-from settings.models import SettingsPortal
+from settings.models import SettingsPortal, SettingsForReportStock
 
 
 @xframe_options_exempt
@@ -364,67 +365,29 @@ def report_production(request):
 
 @xframe_options_exempt
 @csrf_exempt
-def report_stock(request):
+def get_report_stock(request):
     """Метод отчета Остатки на складе."""
     template: str = 'reports/report_stock.html'
     title: str = 'Отчеты'
 
-    if request.method == 'POST':
-        member_id = request.POST.get('member_id')
-    elif request.method == 'GET':
-        member_id = request.GET.get('member_id')
-    else:
-        return render(request, 'error.html', {
-            'error_name': 'QueryError',
-            'error_description': 'Неизвестный тип запроса'
-        })
-    portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
-    user_info = get_current_user(request, '', portal, settings_portal.is_admin_code)
+    try:
+        member_id = check_request(request)
+        portal: Portals = create_portal(member_id)
+        report_stock = ReportStock(portal)
+    except BadRequest:
+        return render(request, 'error.html',
+                      {'error_name': 'QueryError', 'error_description': 'Неизвестный тип запроса'})
+    except RuntimeError as ex:
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
-    form = ReportProductionForm(request.POST or None)
+    user_info = get_current_user(request, '', portal, report_stock.settings_portal.is_admin_code)
 
     context = {
         'title': title,
         'member_id': member_id,
-        'form': form,
-        'user': user_info
-    }
-    if not form.is_valid():
-        return render(request, template, context)
-
-    start_date = request.POST.get('start_date')
-    end_date = request.POST.get('end_date')
-    show_finish = form.cleaned_data['show_finish']
-    show_made = form.cleaned_data['show_made']
-    responsible = form.cleaned_data['responsible']
-
-    prodtimes = ProdTimeDeal.objects.filter(prod_time__range=[start_date, end_date])
-    if show_made:
-        prodtimes = prodtimes.filter(made=show_made)
-    if show_finish:
-        prodtimes = prodtimes.filter(finish=show_finish)
-    if responsible:
-        deals_ids = Deal.objects.filter(responsible=responsible).values_list('deal_id', flat=True)
-        prodtimes = prodtimes.filter(deal_id__in=deals_ids)
-
-    deals = Deal.objects.all()
-    invoices = {deal.deal_id: deal.invoice_number for deal in deals}
-    responsibles = {deal.deal_id: deal.responsible.get_full_name() if deal.responsible else '' for deal in deals}
-
-    results = {
-        'quantity_sum': str(prodtimes.aggregate(Sum('quantity')).get('quantity__sum')),
-        'sum_sum': str(prodtimes.aggregate(Sum('sum')).get('sum__sum')),
-    }
-
-    context = {
-        'title': title,
-        'member_id': member_id,
-        'form': form,
         'user': user_info,
-        'prodtimes': prodtimes,
-        'results': results,
-        'invoices': invoices,
-        'responsibles': responsibles
+        'store_products': report_stock.remains_products,
+        'portal': portal,
+        'settings_for_report_stock': report_stock.settings_for_report_stock
     }
     return render(request, template, context)

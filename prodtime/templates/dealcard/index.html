@@ -433,10 +433,10 @@
             data: {products_id: products_id, member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
-                alert(response.info);
+                alert(response.res);
             })
             .fail(function () {
-                alert('Ошибка при создании сделки на отгрузку');
+                alert('Ошибка при создании элемента на отгрузку');
             });
     }
 

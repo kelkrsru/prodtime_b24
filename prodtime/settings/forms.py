@@ -9,7 +9,8 @@ class SettingsForReportStockForm(forms.ModelForm):
     class Meta:
         model = SettingsForReportStock
         fields = ('stock_id', 'min_stock_code', 'create_task', 'name_task', 'text_task', 'task_deadline',
-                  'task_responsible_code', 'task_id_code', 'background_row')
+                  'task_project_id', 'task_responsible_code', 'task_responsible_default_id',
+                  'task_responsible_default_always', 'task_id_code', 'background_row')
 
 
 class SettingsDealPortalForm(forms.ModelForm):
@@ -18,7 +19,10 @@ class SettingsDealPortalForm(forms.ModelForm):
     class Meta:
         model = SettingsPortal
         fields = ('create_deal', 'name_deal', 'category_id', 'stage_code', 'real_deal_code', 'sum_direct_costs_code',
-                  'sum_direct_costs_fact_code' ,'create_task', 'name_task', 'task_deadline',)
+                  'sum_direct_costs_fact_code', 'create_smart',  'id_smart', 'code_smart', 'stage_smart', 'name_smart',
+                  'sum_equivalent_code_smart', 'real_deal_code_smart', 'sum_direct_costs_code_smart',
+                  'sum_direct_costs_fact_code_smart', 'max_prodtime_smart', 'create_task', 'name_task',
+                  'task_deadline',)
 
 
 class SettingsEquivalentPortalForm(forms.ModelForm):

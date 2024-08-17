@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     def handle(self, *args, **options):
 
-        portal = create_portal('5acee3964adf8fd166051d9f5d5214e2')
+        portal = create_portal('895413ed6c89998e579c7d38f4faa520')
         report_stock = ReportStock(portal)
         separator = '*' * 40
 

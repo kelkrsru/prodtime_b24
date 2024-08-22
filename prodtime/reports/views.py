@@ -270,6 +270,8 @@ def report_deals(request):
                 section_name = section.properties.get('section').get('name')
             except RuntimeError:
                 continue
+            except AttributeError:
+                section_name = 'Не указан'
             productrows.entities[count]['section_name'] = section_name
     for count, productrow in enumerate(productrows.entities):
         try:

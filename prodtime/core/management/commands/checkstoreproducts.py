@@ -45,6 +45,7 @@ class Command(BaseCommand):
                 'TITLE': _replace_values(settings_for_report_stock.name_task, product, portal_obj),
                 'DESCRIPTION': _replace_values(settings_for_report_stock.text_task, product, portal_obj),
                 'RESPONSIBLE_ID': _get_responsible_task(settings_for_report_stock, product),
+                'CREATED_BY': _get_responsible_task(settings_for_report_stock, product),
                 'DEADLINE': deadline.isoformat(),
                 'MATCH_WORK_TIME': 'Y',
             }

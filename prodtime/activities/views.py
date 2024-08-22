@@ -188,16 +188,32 @@ def update_finish(request):
     if made != 'not set':
         prodtimes.update(made=made)
     if finish and finish != 'not set':
-        result = core_methods.create_shipment_deal(portal, settings_portal, object_id, prodtimes_id)
-        if result.get('result') == 'msg':
-            response_for_bp(portal, initial_data['event_token'], 'Информация',
-                            return_values={'result': 'Error', 'msg_error': result.get('info')})
-            return HttpResponse(status=200)
-        deal_bx = result.get('info')
-        result = core_methods.create_shipment_task(portal, settings_portal, deal_bx)
+        general_msg = ''
+        general_msg += f"Создание сделки:\n"
+        result = core_methods.create_shipment_element(portal, settings_portal, object_id, prodtimes_id)
+        try:
+            new_deal_id = int(result.get('info'))
+        except ValueError:
+            new_deal_id = 0
+        general_msg += str(result.get('info'))
+        general_msg += f"\nСоздание элемента смарт процесса:\n"
+        result = core_methods.create_shipment_element(portal, settings_portal, object_id, prodtimes_id,
+                                                      type_elem='smart')
+        general_msg += str(result.get('info'))
+        general_msg += f"\nСоздание задачи:\n"
+        result = core_methods.create_shipment_task(portal, settings_portal, new_deal_id)
+        general_msg += str(result.get('info'))
+        core_methods.save_finish(prodtimes_id)
+        # result = core_methods.create_shipment_element(portal, settings_portal, object_id, prodtimes_id)
+        # if result.get('result') == 'msg':
+        #     response_for_bp(portal, initial_data['event_token'], 'Информация',
+        #                     return_values={'result': 'Error', 'msg_error': result.get('info')})
+        #     return HttpResponse(status=200)
+        # deal_bx = result.get('info')
+        # result = core_methods.create_shipment_task(portal, settings_portal, deal_bx)
         response_for_bp(portal, initial_data['event_token'], 'Активити успешно завершило свою работу',
                         return_values={'result': 'Success', 'msg_success':
-                        f'Успешное обновление полей для товаров сделки. {result.get("info")}'})
+                        f'Успешное обновление полей для товаров сделки.\n{general_msg}'})
         return HttpResponse(status=200)
     elif not finish:
         prodtimes.update(finish=finish)

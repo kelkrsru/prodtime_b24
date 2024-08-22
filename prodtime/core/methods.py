@@ -262,7 +262,7 @@ def create_shipment_element(portal, settings, deal_id, products_id, type_elem='d
     except RuntimeError as ex:
         logger.error(f'Ошибка: {ex.args[0]}, Описание ошибки: {ex.args[1]}')
         logger.info(SEPARATOR)
-        return {'result': 'error', 'info': f'Ошибка: {ex.args[0]}, Описание ошибки: {ex.args[1]}'}
+        return {'result': 'msg', 'info': f'Ошибка: {ex.args[0]}, Описание ошибки: {ex.args[1]}'}
 
     logger.info(f'Добавляем товары в созданный элемент отгрузки')
     for product_id in products_id:

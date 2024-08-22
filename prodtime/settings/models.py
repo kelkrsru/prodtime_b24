@@ -23,6 +23,65 @@ class SettingsPortal(models.Model):
         max_length=255,
         default='Новая сделка',
     )
+    create_smart = models.BooleanField(
+        'Создавать элемент смарт процесса',
+        help_text='Создавать элемент смарт процесса при нажатии на кнопку "Выпуск"',
+        default=True,
+    )
+    id_smart = models.PositiveSmallIntegerField(
+        'ID смарт процесса',
+        help_text='ID смарт процесса для создания элемента',
+        default=1
+    )
+    code_smart = models.CharField(
+        'Код смарт процесса',
+        help_text='Код смарт процесса для создания элемента, данный код можно получить методом REST API '
+                  '"crm.enum.ownertype"',
+        default='Tb1',
+        max_length=20
+    )
+    name_smart = models.CharField(
+        'Наименование элемента',
+        help_text='Наименование создаваемого элемента смарт процесса',
+        max_length=255,
+        default='Новая отгрузка',
+    )
+    stage_smart = models.CharField(
+        'Стадия смарт процесса',
+        help_text='Стадия для создаваемого элемента смарт процесса',
+        default='С2:NEW',
+        max_length=20,
+    )
+    real_deal_code_smart = models.CharField(
+        'Код поля реальной сделки в смарт процессе',
+        help_text='Код поля в создаваемом элементе смарт процесса, куда записывается ссылка на реальную сделку',
+        default='ufCrm00_0000000000',
+        max_length=30,
+    )
+    sum_direct_costs_code_smart = models.CharField(
+        verbose_name='Код поля Сумма прямых затрат в смарт процессе',
+        help_text='Код поля Сумма прямых затрат в создаваемом элементе смарт процесса',
+        default='ufCrm00_0000000000',
+        max_length=30,
+    )
+    sum_direct_costs_fact_code_smart = models.CharField(
+        verbose_name='Код поля Сумма фактических затрат в смарт процессе',
+        help_text='Код поля Сумма фактических затрат в создаваемом элементе смарт процесса',
+        default='ufCrm00_0000000000',
+        max_length=30,
+    )
+    sum_equivalent_code_smart = models.CharField(
+        verbose_name='Код поля Суммарный эквивалент в смарт процессе',
+        help_text='Код поля Суммарный эквивалент в создаваемом элементе смарт процесса',
+        default='ufCrm00_0000000000',
+        max_length=30,
+    )
+    max_prodtime_smart = models.CharField(
+        verbose_name='Код поля Максимальный срок производства в смарт процессе',
+        help_text='Код поля Максимальный срок производства в создаваемом элементе смарт процесса',
+        default='ufCrm00_0000000000',
+        max_length=30,
+    )
     create_task = models.BooleanField(
         verbose_name='Создавать задачу',
         help_text='Создавать задачу к сделке',
@@ -259,6 +318,100 @@ class SettingsPortal(models.Model):
 
     def __str__(self):
         return 'Настройки для портала {}'.format(self.portal.name)
+
+
+class SettingsForReportStock(models.Model):
+    """Модель настроек для отчета по остаткам"""
+    class ColorBackground(models.TextChoices):
+        PRIMARY = 'bg-primary', 'Синий'
+        SECONDARY = 'bg-secondary', 'Серый'
+        SUCCESS = 'bg-success', 'Зеленый'
+        DANGER = 'bg-danger', 'Красный'
+        DARK = 'bg-dark', 'Черный'
+
+    portal = models.OneToOneField(
+        Portals,
+        verbose_name='Портал',
+        related_name='settings_for_report_stock',
+        on_delete=models.CASCADE,
+    )
+    stock_id = models.PositiveSmallIntegerField(
+        'ID склада',
+        help_text='ID склада для работы отчета',
+        default=1,
+    )
+    min_stock_code = models.CharField(
+        verbose_name='Код свойства Минимальный остаток',
+        help_text='Код свойства Минимальный остаток в каталоге товаров. Код, который отдает метод '
+                  '"catalog.product.get"',
+        default='property00',
+        max_length=30,
+    )
+    create_task = models.BooleanField(
+        verbose_name='Создавать задачу',
+        help_text='Создавать задачу при достижении минимального остатка',
+        default=True,
+    )
+    name_task = models.CharField(
+        verbose_name='Наименование задачи',
+        help_text='Наименование создаваемой задачи при достижении минимального остатка',
+        max_length=255,
+        default='Новая задача',
+    )
+    text_task = models.TextField(
+        verbose_name='Текст задачи',
+        help_text='Текст создаваемой задачи при достижении минимального остатка',
+        blank=True,
+    )
+    task_deadline = models.IntegerField(
+        verbose_name='Крайний срок задачи',
+        help_text='Количество дней от текущей даты для крайнего срока задачи',
+        default=3,
+    )
+    task_project_id = models.PositiveSmallIntegerField(
+        'ID проекта задачи',
+        help_text='ID проекта битрикс24, к которому будет относиться задача',
+        default=0
+    )
+    task_responsible_code = models.CharField(
+        verbose_name='Код свойства ответственного',
+        help_text='Код свойства товара в каталоге товаров, из которого берется ID ответственного за создаваемую задачу',
+        default='property00',
+        max_length=30,
+    )
+    task_responsible_default_id = models.PositiveSmallIntegerField(
+        'ID ответственного сотрудника',
+        help_text='ID ответственного за задачу сотрудника по умолчанию, если поле в каталоге товаров не заполнено',
+        default=1,
+    )
+    task_responsible_default_always = models.BooleanField(
+        'Всегда ответственный по умолчанию',
+        help_text='Всегда подставлять ответственным за задачу по умолчанию, не смотря на заполненность поля в каталоге '
+                  'товаров',
+        default=False,
+    )
+    task_id_code = models.CharField(
+        verbose_name='Код свойства ID задачи',
+        help_text='Код свойства ID задачи в каталоге товаров, в которое записывается ID созданной задачи',
+        default='property00',
+        max_length=30,
+    )
+    background_row = models.CharField(
+        'Цвет выделения строк',
+        help_text='Цвет выделения строк, у которых достигнуто значение минимального остатка',
+        max_length=30,
+        choices=ColorBackground.choices,
+        default=ColorBackground.DANGER
+    )
+
+    class Meta:
+        verbose_name = 'Настройка для отчета по Остаткам'
+        verbose_name_plural = 'Настройки для отчета по Остаткам'
+
+        ordering = ['portal', 'pk']
+
+    def __str__(self):
+        return f'Настройки отчета по Остаткам для портала {self.portal.name}'
 
 
 class Numeric(models.Model):

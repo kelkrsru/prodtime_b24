@@ -1,13 +1,30 @@
+import datetime
 import decimal
 import json
+import logging
 
 from django.core.exceptions import BadRequest
 from django.utils import timezone
 from pybitrix24 import Bitrix24
 
-from core.bitrix24.bitrix24 import UserB24, DealB24, ProductRowB24, TaskB24
+from core.bitrix24.bitrix24 import UserB24, DealB24, ProductRowB24, TaskB24, SmartProcessB24
 from core.models import TemplateDocFields
 from dealcard.models import ProdTimeDeal
+
+logger = logging.getLogger(__name__)
+SEPARATOR = '*' * 40
+
+
+def check_request(request):
+    """Метод проверки на тип запроса."""
+    if request.method == 'POST':
+        member_id = request.POST.get('member_id')
+    elif request.method == 'GET':
+        member_id = request.GET.get('member_id')
+    else:
+        raise BadRequest
+
+    return member_id
 
 
 def initial_check(request, entity_type='deal_id'):
@@ -16,8 +33,7 @@ def initial_check(request, entity_type='deal_id'):
 
     if request.method == 'POST':
         member_id: str = request.POST['member_id']
-        entity_id: int = int(json.loads(
-            request.POST['PLACEMENT_OPTIONS'])['ID'])
+        entity_id: int = int(json.loads(request.POST['PLACEMENT_OPTIONS'])['ID'])
         if 'AUTH_ID' in request.POST:
             auth_id: str = request.POST.get('AUTH_ID')
     elif request.method == 'GET':
@@ -63,6 +79,7 @@ def get_current_user(request, auth_id, portal, is_admin_code):
 
 def calculation_income(products, settings, is_change=True):
     """Метод для расчета прибыли."""
+
     def _calculation(prod_sum, income_percent):
         return round(prod_sum * (1 - 1 / (1 + income_percent / 100)), 2)
 
@@ -148,11 +165,12 @@ def fill_values_for_create_doc(settings, template_id, products, kp_number):
     return values
 
 
-def del_prodtime_finish_true_and_sum_equivalent(products_id):
-    """Метод для удаления объектов, у которых finish = false, а также подсчет суммарных значений заданных полей."""
+def del_prodtime_finish_true_and_sum_values(products_id):
+    """Метод для удаления объектов, у которых finish = true, а также подсчет суммарных значений заданных полей."""
     i = 0
     name_fields = {'equivalent_count': 0, 'direct_costs': 1, 'direct_costs_fact': 1}
     sum_values = {}
+    max_prodtime = datetime.date(1970,1,1)
     for name_field in name_fields.keys():
         sum_values[name_field + '_sum'] = decimal.Decimal(0)
 
@@ -169,53 +187,115 @@ def del_prodtime_finish_true_and_sum_equivalent(products_id):
                         sum_values[key] += getattr(prodtime, name_field) * prodtime.quantity
                     else:
                         sum_values[key] += getattr(prodtime, name_field)
+            if prodtime.prod_time and (max_prodtime <= prodtime.prod_time):
+                max_prodtime = prodtime.prod_time
 
-    return products_id, sum_values
+    return products_id, sum_values, max_prodtime
 
 
-def create_shipment_deal(portal, settings, deal_id, products_id):
-    """Создать сделку отгрузки."""
-    if not settings.create_deal:
-        return {'result': 'msg', 'info': 'Создание сделки отключено в настройках. Сделка и задача не созданы.'}
-    products_id, sum_values = del_prodtime_finish_true_and_sum_equivalent(products_id)
+def create_shipment_element(portal, settings, deal_id, products_id, type_elem='deal'):
+    """Создать элемент отгрузки."""
+    logger.info(f'Запущено создание элемента отгрузки с типом {type_elem=}')
+    if type_elem == 'deal':
+        sett_create = 'create_deal'
+        sett_ru = 'Сделка'
+        sett_ru_rod = 'Сделки'
+    elif type_elem == 'smart':
+        sett_create = 'create_smart'
+        sett_ru = 'Элемент смарт процесса'
+        sett_ru_rod = 'Элемента смарт процесса'
+    else:
+        logger.error(f'В функцию create_shipment_element передан неверный тип элемента отгрузки')
+        logger.info(SEPARATOR)
+        return {'result': 'msg', 'info': f'В функцию create_shipment_element передан неверный тип элемента отгрузки'}
+
+    if not getattr(settings, sett_create):
+        logger.info(f'Создание {sett_ru_rod} отключено в настройках. {sett_ru} не создан.')
+        logger.info(SEPARATOR)
+        return {'result': 'msg', 'info': f'Создание {sett_ru_rod} отключено в настройках. {sett_ru} не создан.'}
+    products_id, sum_values, max_prodtime = del_prodtime_finish_true_and_sum_values(products_id)
     if not products_id:
+        logger.warning(f'В приложении не выбраны товары: {products_id=}')
+        logger.info(SEPARATOR)
         return {'result': 'msg', 'info': 'Вы не выбрали товары.'}
-
     try:
         deal_bx = DealB24(portal, deal_id)
-        fields = {
-            'TITLE': settings.name_deal.replace('{ProductName}', '').replace('{DealId}', str(deal_id)),
-            'CATEGORY_ID': settings.category_id,
-            'STAGE_ID': settings.stage_code,
-            'ASSIGNED_BY_ID': deal_bx.responsible,
-            settings.real_deal_code: deal_id,
-            'COMPANY_ID': deal_bx.company_id,
-            'CONTACT_ID': deal_bx.contact_id,
-            settings.sum_equivalent_code: str(sum_values.get('equivalent_count_sum')),
-            settings.sum_direct_costs_code: str(sum_values.get('direct_costs_sum')),
-            settings.sum_direct_costs_fact_code: str(sum_values.get('direct_costs_fact_sum')),
-        }
-        new_deal_id = deal_bx.create(fields)
+        logger.debug(f'Реальная сделка: {deal_bx=}')
+        if type_elem == 'deal':
+            fields_deal = {
+                'TITLE': settings.name_deal.replace('{DealId}', str(deal_id)),
+                'CATEGORY_ID': settings.category_id,
+                'STAGE_ID': settings.stage_code,
+                'ASSIGNED_BY_ID': deal_bx.responsible,
+                settings.real_deal_code: deal_id,
+                'COMPANY_ID': deal_bx.company_id,
+                'CONTACT_ID': deal_bx.contact_id,
+                settings.sum_equivalent_code: str(sum_values.get('equivalent_count_sum')),
+                settings.sum_direct_costs_code: str(sum_values.get('direct_costs_sum')),
+                settings.sum_direct_costs_fact_code: str(sum_values.get('direct_costs_fact_sum')),
+            }
+            logger.debug(f'Поля для создания сделки отгрузки: {fields_deal=}')
+            new_elem_id = deal_bx.create(fields_deal)
+            logger.debug(f'Созданная сделка отгрузки: {new_elem_id=}')
+        elif type_elem == 'smart':
+            smart_process = SmartProcessB24(portal, 16)
+            logger.debug(f'Смарт процесс: {smart_process=}')
+            fields_smart = {
+                'title': settings.name_smart,
+                'stageId': settings.stage_smart,
+                'assignedById': deal_bx.responsible,
+                settings.real_deal_code_smart: deal_id,
+                'companyId': deal_bx.company_id,
+                'contactId': deal_bx.contact_id,
+                settings.sum_equivalent_code_smart: str(sum_values.get('equivalent_count_sum')),
+                settings.sum_direct_costs_code_smart: str(sum_values.get('direct_costs_sum')),
+                settings.sum_direct_costs_fact_code_smart: str(sum_values.get('direct_costs_fact_sum')),
+            }
+            if max_prodtime != datetime.date(1970,1,1):
+                fields_smart[settings.max_prodtime_smart] = str(max_prodtime)
+            logger.debug(f'Поля для создания элемента смарт процесса отгрузки: {fields_smart=}')
+            new_elem = smart_process.create_element(fields_smart).get('item')
+            new_elem_id = new_elem.get('id')
+            logger.debug(f'Созданный элемент смарт процесса отгрузки: {new_elem=}')
+        else:
+            new_elem_id = 0
     except RuntimeError as ex:
+        logger.error(f'Ошибка: {ex.args[0]}, Описание ошибки: {ex.args[1]}')
+        logger.info(SEPARATOR)
         return {'result': 'msg', 'info': f'Ошибка: {ex.args[0]}, Описание ошибки: {ex.args[1]}'}
 
+    logger.info(f'Добавляем товары в созданный элемент отгрузки')
+    for product_id in products_id:
+        prodtime = ProdTimeDeal.objects.get(pk=product_id)
+        prod_row = ProductRowB24(portal, prodtime.product_id_b24)
+        logger.debug(f'Полученный товар из каталога Б24: {prod_row=}')
+        if type_elem == 'smart':
+            prod_row.properties['ownerType'] = settings.code_smart
+        prod_row.properties['ownerId'] = new_elem_id
+        del prod_row.properties['id']
+        prod_row.add(prod_row.properties)
+        logger.info(f'Товар {prod_row.properties["productName"]} добавлен в созданный элемент отгрузки')
+
+    logger.info(SEPARATOR)
+    return {'result': 'success', 'info': new_elem_id}
+
+
+def save_finish(products_id):
     for product_id in products_id:
         prodtime = ProdTimeDeal.objects.get(pk=product_id)
         prodtime.finish = True
         prodtime.save()
-
-        prod_row = ProductRowB24(portal, prodtime.product_id_b24)
-        prod_row.properties['ownerId'] = new_deal_id
-        del prod_row.properties['id']
-        prod_row.add(prod_row.properties)
-
-    return {'result': 'res', 'info': deal_bx}
+        logger.info(f'В БД приложения сохранили признак Выпущен для товара {prodtime.id=}, {prodtime.name_for_print=}')
+    logger.info(SEPARATOR)
 
 
-def create_shipment_task(portal, settings, deal_bx):
+def create_shipment_task(portal, settings, deal_id):
     """Создать задачу отгрузки."""
     if not settings.create_task:
-        return {'result': 'msg', "info": 'Создание задачи отключено в настройках. Сделка создана успешно.'}
+        return {'result': 'msg', "info": 'Создание задачи отключено в настройках. Задача не создана.'}
+    if not deal_id:
+        return {'result': 'msg', "info": 'Задача не может быть создана, т.к. сделка не была создана.'}
+    deal_bx = DealB24(portal, deal_id)
     deadline = settings.task_deadline
     deadline = timezone.now() + timezone.timedelta(days=deadline)
     fields = {
@@ -224,8 +304,8 @@ def create_shipment_task(portal, settings, deal_bx):
         'UF_CRM_TASK': [f'D_{deal_bx.id}'],
         'DEADLINE': deadline.isoformat(),
         'MATCH_WORK_TIME': 'Y',
-            }
+    }
     bx24_task = TaskB24(portal, 0)
-    bx24_task.create(fields)
+    task_id = bx24_task.create(fields).get('result').get('task').get('id')
 
-    return {'result': 'msg', "info": 'Сделка и задача созданы успешно.'}
+    return {'result': 'res', "info": task_id}

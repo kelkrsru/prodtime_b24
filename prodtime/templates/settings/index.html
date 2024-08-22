@@ -399,27 +399,45 @@
     </div>
 
     <div class="tab-pane fade {% if active_tab == 6 %} show active {% endif %}" id="nav-reports" role="tabpanel" aria-labelledby="nav-contact-tab">
-      <div class="row">
-        <div class="col-3 card ms-5">
-          <div class="card-header fw-bold bg-info">
-            Отчет по сделкам
-          </div>
-          <div class="card-body">
-            <p>Отчет по сделкам</p>
-          </div>
-          <div class="card-footer d-flex justify-content-end">
-            <a href="{% url 'reports:report_deals' %}?member_id={{ member_id }}" class="btn btn-outline-primary">Перейти к отчету</a>
+      <div class="row flex-row">
+        <div class="col-12 col-md-4 mt-3 d-flex">
+          <div class="card flex-fill">
+            <div class="card-header fw-bold bg-info">
+              Отчет по сделкам
+            </div>
+            <div class="card-body">
+              <p>Отчет по сделкам</p>
+            </div>
+            <div class="card-footer d-flex justify-content-end">
+              <a href="{% url 'reports:report_deals' %}?member_id={{ member_id }}" class="btn btn-outline-primary">Перейти к отчету</a>
+            </div>
           </div>
         </div>
-        <div class="col-3 card ms-5">
-          <div class="card-header fw-bold bg-info">
-            Отчет по производству
+        <div class="col-12 col-md-4 mt-3 d-flex">
+          <div class="card flex-fill">
+            <div class="card-header fw-bold bg-info">
+              Отчет по производству
+            </div>
+            <div class="card-body">
+              <p>Отчет по производству</p>
+            </div>
+            <div class="card-footer d-flex justify-content-end">
+              <a href="{% url 'reports:report_production' %}?member_id={{ member_id }}" class="btn btn-outline-primary">Перейти к отчету</a>
+            </div>
           </div>
-          <div class="card-body">
-            <p>Отчет по производству. В разработке.</p>
-          </div>
-          <div class="card-footer d-flex justify-content-end">
-            <a href="{% url 'reports:report_production' %}?member_id={{ member_id }}" class="btn btn-outline-primary">Перейти к отчету</a>
+        </div>
+        <div class="col-12 col-md-4 mt-3 d-flex">
+          <div class="card flex-fill">
+            <div class="card-header fw-bold bg-info">
+              Отчет по остаткам на складах
+            </div>
+            <div class="card-body">
+              <p>Отчет по остаткам на складах</p>
+            </div>
+            <div class="card-footer d-flex justify-content-end">
+              <a href="{% url 'settings:report_stock' %}?member_id={{ member_id }}" class="btn btn-outline-warning me-2">Настройки отчета</a>
+              <a href="{% url 'reports:report_stock' %}?member_id={{ member_id }}" class="btn btn-outline-primary">Перейти к отчету</a>
+            </div>
           </div>
         </div>
       </div>

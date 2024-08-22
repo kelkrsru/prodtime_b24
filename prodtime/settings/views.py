@@ -7,10 +7,10 @@ from typing import Optional
 from activities.models import Activity
 from core.bitrix24.bitrix24 import create_portal, ActivityB24
 from core.methods import get_current_user
-from .models import SettingsPortal
+from .models import SettingsPortal, SettingsForReportStock
 from .forms import (SettingsDealPortalForm, SettingsEquivalentPortalForm,
                     SettingsFactoryNumbersPortalForm,
-                    SettingsArticlesPortalForm, SettingsGeneralPortalForm)
+                    SettingsArticlesPortalForm, SettingsGeneralPortalForm, SettingsForReportStockForm)
 from core.models import TemplateDocFields, Portals
 
 
@@ -136,6 +136,48 @@ def index(request):
         'activities': activities,
         'activities_installed': activities_installed,
     }
+    response = render(request, template, context)
+    if auth_id:
+        response.set_cookie(key='user_id', value=user_info.get('user_id'))
+    return response
+
+
+@xframe_options_exempt
+@csrf_exempt
+def report_stock(request):
+
+    template = 'settings/report_stock.html'
+    auth_id = ''
+
+    if request.method == 'POST':
+        member_id: Optional[str] = request.POST.get('member_id')
+        if 'AUTH_ID' in request.POST:
+            auth_id: str = request.POST.get('AUTH_ID')
+    elif request.method == 'GET':
+        member_id: Optional[str] = request.GET.get('member_id')
+    else:
+        return render(request, 'error.html', {
+            'error_name': 'QueryError',
+            'error_description': 'Неизвестный тип запроса'
+        })
+
+    portal: Portals = create_portal(member_id)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
+    settings_for_report_stock = get_object_or_404(SettingsForReportStock, portal=portal)
+    user_info = get_current_user(request, auth_id, portal, settings_portal.is_admin_code)
+
+    form = SettingsForReportStockForm(request.POST or None, instance=settings_for_report_stock,)
+    if form.is_valid():
+        fields_form = form.save(commit=False)
+        fields_form.portal = portal
+        fields_form.save()
+
+    context = {
+        'form': form,
+        'member_id': member_id,
+        'user': user_info,
+    }
+
     response = render(request, template, context)
     if auth_id:
         response.set_cookie(key='user_id', value=user_info.get('user_id'))

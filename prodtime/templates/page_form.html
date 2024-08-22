@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="content__inner-page">
+    <div class="container">
+      <div class="row mt-3 justify-content-center">
+        <div class="col-12 col-md-8 card">
+          {% load user_filters %}
+          {% if form.errors %}
+            {% for error in form.non_field_errors %}
+              <div class="alert alert-danger mt-3">
+                {{ error|escape }}
+              </div>
+            {% endfor %}
+          {% endif %}
+          <form method="post" action="{{ action_url }}">
+            <div class="card-body">
+              {% csrf_token %}
+              {% for field in form %}
+                <div class="form-group col">
+                  <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                      {% if field.field.required %}
+                        <span class="required text-danger">*</span>
+                      {% endif %}
+                  </label>
+                  {% if field|fieldtype == 'Select' %}
+                    {% if field.errors %}
+                      {{ field|addclass:'form-select is-invalid' }}
+                      {% for error in field.errors %}
+                        <div class="invalid-feedback">{{ error|escape }}</div>
+                      {% endfor %}
+                    {% else %}
+                      {{ field|addclass:'form-select' }}
+                    {% endif %}
+                  {% elif field|widgettype == 'CheckboxInput' %}
+                    {% if field.errors %}
+                      <div class="form-check form-switch mt-1">
+                        {{ field|addclass:'form-check-input is-invalid' }}
+                      </div>
+                      {% for error in field.errors %}
+                        <div class="invalid-feedback">{{ error|escape }}</div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="form-check form-switch mt-1">
+                        {{ field|addclass:'form-check-input' }}
+                      </div>
+                    {% endif %}
+                  {% else %}
+                    {% if field.errors %}
+                      {{ field|addclass:'form-control is-invalid' }}
+                      {% for error in field.errors %}
+                        <div class="invalid-feedback">{{ error|escape }}</div>
+                      {% endfor %}
+                    {% else %}
+                      {{ field|addclass:'form-control' }}
+                    {% endif %}
+                  {% endif %}
+                    {% if field.help_text %}
+                      <small id="{{ field.id_for_label }}-help" class="form-text text-muted">
+                        {{ field.help_text|safe }}
+                      </small>
+                    {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+
+            {% block card_footer %}
+              <div class="card-footer">
+                <div class="col d-flex align-items-end justify-content-end">
+                  <button type="submit" class="btn btn-success">{{ btn_success_name }}</button>
+                </div>
+              </div>
+            {% endblock %}
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

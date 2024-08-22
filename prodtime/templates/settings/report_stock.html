@@ -1,0 +1,24 @@
+{% extends 'page_form.html' %}
+
+{% block title %}Настройки отчета по Остаткам{% endblock %}
+{% block card_footer %}
+  <div class="card-footer">
+    <div class="col d-flex align-items-end justify-content-end">
+      <input type="text" name='member_id' value="{{ member_id }}" hidden>
+      <a href="{% url 'settings:index' %}?member_id={{ member_id }}&back_to_settings='true'" class="btn btn-outline-primary me-2">Вернуться к настройкам</a>
+      <button type="submit" class="btn btn-success">Сохранить</button>
+    </div>
+  </div>
+{% endblock %}
+{% block after_content %}
+  <div class="row mt-3 justify-content-center">
+    <div class="col-12 col-md-7 alert alert-info">
+      <strong>Наименование и Текст задачи</strong> поддерживают следующие поля:<br>
+      {ProductName} - Наименование товара<br>
+      {ProductLink} - Ссылка на товар<br>
+      {ProductMin} - Минимальный остаток товара<br>
+      {ProductAvailable} - Доступное количество товара<br>
+      {ProductNoAvailable} - Количество товара, которого не хватает до минимального<br>
+    </div>
+  </div>
+{% endblock %}

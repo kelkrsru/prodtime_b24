@@ -411,14 +411,24 @@ def create(request):
     deal_id = request.POST.get('deal_id')
     portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
+    general_msg = ''
 
-    result = core_methods.create_shipment_deal(portal, settings_portal, deal_id, products_id)
-    if result.get('result') == 'msg':
-        return JsonResponse(result)
-    deal_bx = result.get('info')
+    general_msg += f"Создание сделки:\n"
+    result = core_methods.create_shipment_element(portal, settings_portal, deal_id, products_id)
+    try:
+        new_deal_id = int(result.get('info'))
+    except ValueError:
+        new_deal_id = 0
+    general_msg += str(result.get('info'))
+    general_msg += f"\nСоздание элемента смарт процесса:\n"
+    result = core_methods.create_shipment_element(portal, settings_portal, deal_id, products_id, type_elem='smart')
+    general_msg += str(result.get('info'))
+    general_msg += f"\nСоздание задачи:\n"
+    result = core_methods.create_shipment_task(portal, settings_portal, new_deal_id)
+    general_msg += str(result.get('info'))
+    core_methods.save_finish(products_id)
 
-    result = core_methods.create_shipment_task(portal, settings_portal, deal_bx)
-    return JsonResponse(result)
+    return JsonResponse({'res': general_msg})
 
 
 @xframe_options_exempt

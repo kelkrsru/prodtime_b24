@@ -1,6 +1,6 @@
 import decimal
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -8,12 +8,13 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core.bitrix24.bitrix24 import (create_portal, ListEntitiesB24,
                                     ListProductRowsB24, ProductInCatalogB24,
-                                    CatalogSectionB24)
-from core.methods import get_current_user
+                                    CatalogSectionB24, BatchB24)
+from core.methods import get_current_user, check_request
 from core.models import Portals
 from dealcard.models import ProdTimeDeal, Deal
+from reports.ReportProdtime import ReportStock
 from reports.forms import ReportDealsForm, ReportProductionForm
-from settings.models import SettingsPortal
+from settings.models import SettingsPortal, SettingsForReportStock
 
 
 @xframe_options_exempt
@@ -269,6 +270,8 @@ def report_deals(request):
                 section_name = section.properties.get('section').get('name')
             except RuntimeError:
                 continue
+            except AttributeError:
+                section_name = 'Не указан'
             productrows.entities[count]['section_name'] = section_name
     for count, productrow in enumerate(productrows.entities):
         try:
@@ -358,5 +361,35 @@ def report_production(request):
         'results': results,
         'invoices': invoices,
         'responsibles': responsibles
+    }
+    return render(request, template, context)
+
+
+@xframe_options_exempt
+@csrf_exempt
+def get_report_stock(request):
+    """Метод отчета Остатки на складе."""
+    template: str = 'reports/report_stock.html'
+    title: str = 'Отчеты'
+
+    try:
+        member_id = check_request(request)
+        portal: Portals = create_portal(member_id)
+        report_stock = ReportStock(portal)
+    except BadRequest:
+        return render(request, 'error.html',
+                      {'error_name': 'QueryError', 'error_description': 'Неизвестный тип запроса'})
+    except RuntimeError as ex:
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
+
+    user_info = get_current_user(request, '', portal, report_stock.settings_portal.is_admin_code)
+
+    context = {
+        'title': title,
+        'member_id': member_id,
+        'user': user_info,
+        'store_products': report_stock.remains_products,
+        'portal': portal,
+        'settings_for_report_stock': report_stock.settings_for_report_stock
     }
     return render(request, template, context)

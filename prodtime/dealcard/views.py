@@ -233,45 +233,34 @@ def index(request):
 
         # Работа с эквивалентом
         if prodtime.is_change_equivalent:
-            product_value['equivalent'] = str(prodtime.equivalent).replace(
-                ',', '.')
+            product_value['equivalent'] = str(prodtime.equivalent).replace(',', '.')
         else:
             try:
-                product_in_catalog = ProductB24Old(portal,
-                                                   prodtime.product_id_b24)
+                product_in_catalog = ProductB24Old(portal, prodtime.product_id_b24)
             except RuntimeError as ex:
                 return render(request, 'error.html', {
                     'error_name': ex.args[0],
-                    'error_description': f'{ex.args[1]} для товара '
-                                         f'{prodtime.name}'
+                    'error_description': f'{ex.args[1]} для товара {prodtime.name}'
                 })
             equivalent_code = settings_portal.equivalent_code
-            if (equivalent_code not in product_in_catalog.props
-                    or not product_in_catalog.props.get(equivalent_code)):
+            if equivalent_code not in product_in_catalog.props or not product_in_catalog.props.get(equivalent_code):
                 product_value['equivalent'] = ''
                 prodtime.equivalent = 0
             else:
-                product_value['equivalent'] = list(
-                    product_in_catalog.props.get(
-                        equivalent_code).values())[1]
-                prodtime.equivalent = decimal.Decimal(
-                    product_value['equivalent'])
+                product_value['equivalent'] = list(product_in_catalog.props.get(equivalent_code).values())[1]
+                prodtime.equivalent = decimal.Decimal(product_value['equivalent'])
             prodtime.save()
         if prodtime.equivalent and prodtime.quantity:
-            prodtime.equivalent_count = (prodtime.equivalent *
-                                         prodtime.quantity)
+            prodtime.equivalent_count = (prodtime.equivalent * prodtime.quantity)
             prodtime.save()
         products.append(product_value)
 
-    products_in_db = ProdTimeDeal.objects.filter(portal=portal,
-                                                 deal_id=deal_id)
+    products_in_db = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     for product in products_in_db:
-        if not next((x for x in products if
-                     x['product_id_b24'] == product.product_id_b24), None):
+        if not next((x for x in products if x['product_id_b24'] == product.product_id_b24), None):
             product.delete()
 
-    sum_equivalent = ProdTimeDeal.objects.filter(
-        portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
+    sum_equivalent = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
     sum_equivalent = sum_equivalent['equivalent_count__sum']
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
@@ -285,8 +274,7 @@ def index(request):
     #     max_prodtime = 'Не задан'
     max_prodtime = deal_bx.properties.get(settings_portal.max_prodtime_code)
     if max_prodtime:
-        max_prodtime = datetime.datetime.strptime(
-            max_prodtime.split('T')[0], '%Y-%m-%d').date()
+        max_prodtime = datetime.datetime.strptime(max_prodtime.split('T')[0], '%Y-%m-%d').date()
     else:
         max_prodtime = 'Не задан'
 

@@ -86,19 +86,21 @@
             <th>Остаток на складе</th>
             <th>Зарезервировано</th>
             <th>Остаток с учетом резерва</th>
-            <th>Минимальный остаток</th>
-            <th>Не хватает до минимального остатка</th>
+            <th>Min</th>
+            <th>Max</th>
+            <th>Отклонения</th>
           </tr>
         </thead>
         <tbody>
           {% for product in store_products %}
-            <tr {% if product.color %}class="{{ settings_for_report_stock.background_row }} text-white"{% endif %}>
+            <tr class="{% if product.color %}{{ settings_for_report_stock.background_row }} text-white{% elif product.color_max %}{{ settings_for_report_stock.background_row_max }} text-white{% endif %}">
             <td><a href="https://{{ portal.name }}/crm/catalog/15/product/{{ product.productId }}/" target="_blank">{{ product.name }}</a></td>
             <td>{{ product.amount }}</td>
             <td>{{ product.quantityReserved }}</td>
             <td>{{ product.quantityAvailable }}</td>
             <td>{{ product.min_stock }}</td>
-            <td {% if product.color %}class="fw-bold"{% endif %}>{{ product.no_available }}</td>
+            <td>{{ product.max_stock }}</td>
+            <td {% if product.color or product.color_max %}class="fw-bold"{% endif %}>{{ product.no_available }}</td>
           </tr>
           {% endfor %}
         </tbody>

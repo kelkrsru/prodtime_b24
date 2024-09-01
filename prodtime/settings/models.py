@@ -347,6 +347,13 @@ class SettingsForReportStock(models.Model):
         default='property00',
         max_length=30,
     )
+    max_stock_code = models.CharField(
+        verbose_name='Код свойства Максимальное количество',
+        help_text='Код свойства Максимальное количество в каталоге товаров. Код, который отдает метод '
+                  '"catalog.product.get"',
+        default='property00',
+        max_length=30,
+    )
     create_task = models.BooleanField(
         verbose_name='Создавать задачу',
         help_text='Создавать задачу при достижении минимального остатка',
@@ -397,11 +404,18 @@ class SettingsForReportStock(models.Model):
         max_length=30,
     )
     background_row = models.CharField(
-        'Цвет выделения строк',
+        'Цвет выделения строк Min',
         help_text='Цвет выделения строк, у которых достигнуто значение минимального остатка',
         max_length=30,
         choices=ColorBackground.choices,
         default=ColorBackground.DANGER
+    )
+    background_row_max = models.CharField(
+        'Цвет выделения строк Max',
+        help_text='Цвет выделения строк, у которых значение больше максимального остатка',
+        max_length=30,
+        choices=ColorBackground.choices,
+        default=ColorBackground.SUCCESS
     )
 
     class Meta:

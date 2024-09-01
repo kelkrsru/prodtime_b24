@@ -23,6 +23,7 @@ class ReportStock(ReportProdtime):
         super().__init__(portal)
         self.settings_for_report_stock = self._get_settings_for_report_stock()
         self.min_stock_code = self.settings_for_report_stock.min_stock_code
+        self.max_stock_code = self.settings_for_report_stock.max_stock_code
         self.stock_id = self.settings_for_report_stock.stock_id
         self.all_remains_for_stock = self._get_all_remains_for_stock()
         self.products_in_catalog = self._get_products_in_catalog().results
@@ -71,8 +72,16 @@ class ReportStock(ReportProdtime):
                 remain_product['min_stock'] = int(product_in_catalog.get(self.min_stock_code).get('value'))
                 no_available = remain_product.get('min_stock') - remain_product.get('quantityAvailable')
                 if no_available >= 0:
-                    remain_product['no_available'] = no_available
+                    remain_product['no_available'] = f'-{no_available}'
                     remain_product['color'] = True
             else:
                 remains_products[product_in_catalog.get('id')]['min_stock'] = 'Не указан'
+            if product_in_catalog.get(self.max_stock_code):
+                remain_product['max_stock'] = int(product_in_catalog.get(self.max_stock_code).get('value'))
+                no_available = remain_product.get('quantityAvailable') - remain_product.get('max_stock')
+                if no_available >= 0:
+                    remain_product['no_available'] = f'+{no_available}'
+                    remain_product['color_max'] = True
+            else:
+                remains_products[product_in_catalog.get('id')]['max_stock'] = 'Не указан'
         return remains_products.values()

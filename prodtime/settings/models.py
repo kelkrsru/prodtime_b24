@@ -153,6 +153,12 @@ class SettingsPortal(models.Model):
         default='UF_CRM_0000000000',
         max_length=30,
     )
+    sum_equivalent_quote_code = models.CharField(
+        verbose_name='Код свойства суммарный эквивалент в предложении',
+        help_text='Код свойства суммарный эквивалент в предложении',
+        default='UF_CRM_0000000000',
+        max_length=30,
+    )
     sum_direct_costs_code = models.CharField(
         verbose_name='Код поля Сумма прямых затрат',
         help_text='Код поля Сумма прямых затрат в сделке',

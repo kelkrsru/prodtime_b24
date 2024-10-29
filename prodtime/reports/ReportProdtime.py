@@ -60,6 +60,7 @@ class ReportStock(ReportProdtime):
             product_in_catalog_id = product_in_catalog.get('id')
             remain_product = remains_products.get(product_in_catalog_id)
             remain_product['no_available'] = "-"
+            remain_product['flag_task'] = False
             remain_product['color'] = False
 
             if product_in_catalog.get(self.settings_for_report_stock.task_id_code):
@@ -73,6 +74,7 @@ class ReportStock(ReportProdtime):
                 no_available = remain_product.get('min_stock') - remain_product.get('quantityAvailable')
                 if no_available >= 0:
                     remain_product['no_available'] = f'-{no_available}'
+                    remain_product['flag_task'] = True
                     remain_product['color'] = True
             else:
                 remains_products[product_in_catalog.get('id')]['min_stock'] = 'Не указан'
@@ -81,6 +83,7 @@ class ReportStock(ReportProdtime):
                 no_available = remain_product.get('quantityAvailable') - remain_product.get('max_stock')
                 if no_available >= 0:
                     remain_product['no_available'] = f'+{no_available}'
+                    remain_product['flag_task'] = False
                     remain_product['color_max'] = True
             else:
                 remains_products[product_in_catalog.get('id')]['max_stock'] = 'Не указан'

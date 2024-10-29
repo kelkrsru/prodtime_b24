@@ -82,7 +82,7 @@ class Command(BaseCommand):
             product_in_catalog.update(product_in_catalog.properties)
 
         for remain_product in report_stock.remains_products:
-            if remain_product.get("no_available") == "-":
+            if not remain_product.get("flag_task"):
                 logger.info(f'Количества товара id={remain_product.get("productId")} достаточное количество на складе')
                 check_tack(remain_product, 'delete', portal, report_stock.settings_for_report_stock)
                 logger.info(f'{separator}')

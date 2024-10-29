@@ -499,7 +499,7 @@
             data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
         })
             .done(function (response) {
-                alert("Суммарный эквивалент передан в сделку в размере " + response.result)
+                alert("Суммарный эквивалент с учетом скидок и количества передан в сделку в размере " + response.result)
             })
             .fail(function () {
                 alert('Ошибка передачи эквивалента в сделку');

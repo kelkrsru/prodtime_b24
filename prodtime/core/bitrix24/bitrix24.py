@@ -286,6 +286,18 @@ class QuoteB24(ObjB24):
             'crm.quote.update', {'id': self.id, 'fields': fields}
         ))
 
+    def send_equivalent(self, code_equivalent, value_equivalent):
+        """Обновить эквивалент в сделке."""
+        return self._check_error(self.bx24.call(
+            'crm.quote.update',
+            {
+                'id': self.id,
+                'fields': {
+                    code_equivalent: value_equivalent
+                }
+            }
+        ))
+
 
 class TaskB24(ObjB24):
     """Класс Задача Битрикс24."""

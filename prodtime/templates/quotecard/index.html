@@ -33,6 +33,7 @@
         <div class="d-flex flex-row-reverse align-items-center mt-3">
           <a href="{% url 'quotecard:export-excel' %}?member_id={{ member_id }}&quote_id={{ quote_id }}" target="_blank" class="btn btn-outline-primary">Выгрузить таблицу в Excel</a>
           <button class="btn btn-outline-primary me-3" onclick="sendProductsToDeal()">Передать товары в сделку</button>
+          <button class="btn btn-outline-primary me-3" onclick="sendEquivalent()">Передать суммарный эквивалент в предложение</button>
         </div>
       </div>
     </div>
@@ -230,13 +231,13 @@
         $.ajax({
             url: "{% url 'quotecard:send-equivalent' %}",
             type: "POST",
-            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}", quote_id: "{{ quote_id }}"},
+            data: {member_id: "{{ member_id }}", quote_id: "{{ quote_id }}"},
         })
             .done(function (response) {
-                alert("Суммарный эквивалент передан в сделку в размере " + response.result)
+                alert("Суммарный эквивалент с учетом скидок и количества передан в предложение в размере " + response.result)
             })
             .fail(function () {
-                alert('Ошибка передачи эквивалента в сделку');
+                alert('Ошибка передачи эквивалента в предложение');
             });
     }
 

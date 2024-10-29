@@ -1,6 +1,5 @@
 import datetime
 import decimal
-from pprint import pprint
 
 import core.methods as core_methods
 
@@ -168,25 +167,19 @@ def index(request):
 
         # Работа с эквивалентом
         if prodtime.is_change_equivalent:
-            product_value['equivalent'] = str(prodtime.equivalent).replace(
-                ',', '.')
+            product_value['equivalent'] = str(prodtime.equivalent).replace(',', '.')
         else:
             equivalent_code = settings_portal.equivalent_code
-            if (not product_in_catalog.properties
-                    or equivalent_code not in product_in_catalog.properties
+            if (not product_in_catalog.properties or equivalent_code not in product_in_catalog.properties
                     or not product_in_catalog.properties.get(equivalent_code)):
                 product_value['equivalent'] = ''
                 prodtime.equivalent = 0
             else:
-                product_value['equivalent'] = list(
-                    product_in_catalog.properties.get(
-                        equivalent_code).values())[1]
-                prodtime.equivalent = decimal.Decimal(
-                    product_value['equivalent'])
+                product_value['equivalent'] = list(product_in_catalog.properties.get(equivalent_code).values())[1]
+                prodtime.equivalent = decimal.Decimal(product_value['equivalent'])
             prodtime.save()
         if prodtime.equivalent and prodtime.quantity:
-            prodtime.equivalent_count = (prodtime.equivalent *
-                                         prodtime.quantity)
+            prodtime.equivalent_count = (prodtime.equivalent * prodtime.quantity)
             prodtime.save()
 
         # Работа с прибылью
@@ -210,14 +203,12 @@ def index(request):
         else:
             try:
                 if product["PRODUCT_ID"] == 0:
-                    raise RuntimeError('Product not catalog',
-                                       'Product not catalog')
+                    raise RuntimeError('Product not catalog', 'Product not catalog')
                 product_in_catalog = ProductInCatalogB24(portal, product["PRODUCT_ID"])
             except RuntimeError as ex:
                 return render(request, 'error.html', {
                     'error_name': ex.args[0],
-                    'error_description': f'{ex.args[1]} для товара '
-                                         f'{prodtime.name}'
+                    'error_description': f'{ex.args[1]} для товара {prodtime.name}'
                 })
             prodtime_str_code = settings_portal.prodtime_str_code
             if (not product_in_catalog.properties
@@ -241,9 +232,9 @@ def index(request):
                      x['product_id_b24'] == product.product_id_b24), None):
             product.delete()
 
-    sum_equivalent = ProdTimeQuote.objects.filter(
-        portal=portal, quote_id=quote_id).aggregate(Sum('equivalent_count'))
-    sum_equivalent = sum_equivalent['equivalent_count__sum']
+    # sum_equivalent = ProdTimeQuote.objects.filter(
+    #     portal=portal, quote_id=quote_id).aggregate(Sum('equivalent_count'))
+    sum_equivalent = core_methods.count_sum_equivalent(ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id))
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
@@ -285,8 +276,7 @@ def save(request):
     if type_field == 'equivalent':
         if value:
             prodtime.equivalent = value
-            prodtime.equivalent_count = (decimal.Decimal(value)
-                                         * prodtime.quantity)
+            prodtime.equivalent_count = (decimal.Decimal(value) * prodtime.quantity)
             prodtime.is_change_equivalent = True
     prodtime.save()
 
@@ -426,11 +416,9 @@ def create_articles(request):
                                                  kp_number)
             new_name = f"{product.name_for_print} ( {article} )"
 
-        equivalent_code = ''.join(
-            settings_portal.equivalent_code.split('_')).lower()
+        equivalent_code = ''.join(settings_portal.equivalent_code.split('_')).lower()
         if product.is_change_equivalent:
-            product_in_catalog.properties[
-                equivalent_code] = str(product.equivalent)
+            product_in_catalog.properties[equivalent_code] = str(product.equivalent)
 
         product_in_catalog.properties['name'] = new_name
         product_in_catalog.properties['iblockSectionId'] = new_section_id
@@ -510,33 +498,22 @@ def copy_products(request):
             product_in_catalog = ProductB24(portal, productrow.id_in_catalog)
             section_id = product_in_catalog.properties.get('SECTION_ID')
             filter_for_list = {settings_portal.real_section_code: section_id}
-            element_list = ListB24(
-                portal, settings_portal.section_list_id).get_element_filter(
-                filter_for_list)
+            element_list = ListB24(portal, settings_portal.section_list_id).get_element_filter(filter_for_list)
             if not element_list:
                 new_section_id = settings_portal.default_section_id
             else:
-                new_section_id = list(
-                    element_list[0].get(
-                        settings_portal.copy_section_code).values())[0]
+                new_section_id = list(element_list[0].get(settings_portal.copy_section_code).values())[0]
             if product.is_change_equivalent:
-                product_in_catalog.properties[
-                    settings_portal.equivalent_code] = {}
-                product_in_catalog.properties[settings_portal.equivalent_code][
-                    'value'] = str(product.equivalent)
+                product_in_catalog.properties[settings_portal.equivalent_code] = {}
+                product_in_catalog.properties[settings_portal.equivalent_code]['value'] = str(product.equivalent)
             if product.is_change_prodtime_str:
-                product_in_catalog.properties[
-                    settings_portal.prodtime_str_code] = {}
-                product_in_catalog.properties[
-                    settings_portal.prodtime_str_code]['value'] = str(
-                    product.prodtime_str)
+                product_in_catalog.properties[settings_portal.prodtime_str_code] = {}
+                product_in_catalog.properties[settings_portal.prodtime_str_code]['value'] = str(product.prodtime_str)
             product_in_catalog.properties['NAME'] = product.name_for_print
             product_in_catalog.properties['SECTION_ID'] = new_section_id
-            product_in_catalog.properties['CREATED_BY'] = (
-                settings_portal.responsible_id_copy_catalog)
+            product_in_catalog.properties['CREATED_BY'] = (settings_portal.responsible_id_copy_catalog)
             product_in_catalog.properties['PRICE'] = None
-            product_in_catalog.properties[
-                settings_portal.price_with_tax_code] = None
+            product_in_catalog.properties[settings_portal.price_with_tax_code] = None
             del product_in_catalog.properties['ID']
             new_id_product_in_catalog = product_in_catalog.add_catalog()
             productrow.properties['productId'] = new_id_product_in_catalog
@@ -558,22 +535,19 @@ def copy_products(request):
 @xframe_options_exempt
 @csrf_exempt
 def send_equivalent(request):
-    """Метод отправки суммарного эквивалента в сделку."""
+    """Метод отправки суммарного эквивалента в предложение."""
 
     member_id = request.POST.get('member_id')
-    deal_id = int(request.POST.get('deal_id'))
     quote_id = int(request.POST.get('quote_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
-    sum_equivalent = ProdTimeQuote.objects.filter(
-        portal=portal, quote_id=quote_id).aggregate(Sum('equivalent_count'))
-    if sum_equivalent['equivalent_count__sum']:
-        sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
-        deal = DealB24(portal, deal_id)
-        deal.send_equivalent(settings_portal.sum_equivalent_code,
-                             sum_equivalent)
+    sum_equivalent = core_methods.count_sum_equivalent(ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id))
+    if sum_equivalent:
+        sum_equivalent = float(sum_equivalent)
+        quote = QuoteB24(portal, quote_id)
+        result = quote.send_equivalent(settings_portal.sum_equivalent_quote_code, sum_equivalent)
+        print(result)
 
     return JsonResponse({'result': sum_equivalent})
 
@@ -586,8 +560,7 @@ def send_products(request):
     deal_id = int(request.POST.get('deal_id'))
     quote_id = int(request.POST.get('quote_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
     try:
         quote = QuoteB24(portal, quote_id)
@@ -641,12 +614,9 @@ def send_products(request):
     except RuntimeError as ex:
         return JsonResponse({'result': 'error', 'error_name': ex.args[0], 'error_description': ex.args[1]})
 
-    sum_equivalent = ProdTimeDeal.objects.filter(
-        portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
-    if sum_equivalent['equivalent_count__sum']:
-        sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
-        deal.send_equivalent(settings_portal.sum_equivalent_code,
-                             sum_equivalent)
+    sum_equivalent = core_methods.count_sum_equivalent(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+    if sum_equivalent:
+        deal.send_equivalent(settings_portal.sum_equivalent_code, float(sum_equivalent))
 
     return JsonResponse({'result': 'ok'})
 

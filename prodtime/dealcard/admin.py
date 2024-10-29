@@ -11,7 +11,7 @@ class ProdTimeDealAdmin(admin.ModelAdmin):
         'deal_id',
         'portal',
     )
-    search_fields = ('deal_id',)
+    search_fields = ('deal_id', 'product_id_b24')
     list_editable = ('sort',)
 
 

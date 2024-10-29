@@ -7,7 +7,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 import core.methods as core_methods
 
 from typing import Dict, Any
-from django.db.models import Sum
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -252,16 +251,20 @@ def index(request):
             prodtime.save()
         if prodtime.equivalent and prodtime.quantity:
             prodtime.equivalent_count = (prodtime.equivalent * prodtime.quantity)
-            prodtime.save()
+        else:
+            prodtime.equivalent_count = 0
+        prodtime.save()
         products.append(product_value)
 
     products_in_db = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     for product in products_in_db:
         if not next((x for x in products if x['product_id_b24'] == product.product_id_b24), None):
             product.delete()
+    # Подсчет суммарного эквивалента
+    sum_equivalent = core_methods.count_sum_equivalent(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
 
-    sum_equivalent = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
-    sum_equivalent = sum_equivalent['equivalent_count__sum']
+    # sum_equivalent = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
+    # sum_equivalent = sum_equivalent['equivalent_count__sum']
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
@@ -319,8 +322,7 @@ def save(request):
             prodtime.count_days = value
         if type_field == 'equivalent':
             prodtime.equivalent = value
-            prodtime.equivalent_count = (decimal.Decimal(value)
-                                         * prodtime.quantity)
+            prodtime.equivalent_count = (decimal.Decimal(value) * prodtime.quantity)
             prodtime.is_change_equivalent = True
         if type_field == 'prodtime-str':
             prodtime.prodtime_str = value
@@ -661,8 +663,8 @@ def write_factory_number(request):
                 continue
             productrow = ProductRowB24(portal, product.product_id_b24)
             product_in_catalog = ProductB24(portal, productrow.id_in_catalog)
-            if not product_in_catalog.properties.get(
-                    settings_portal.factory_number_code):
+            product_factory_number_value = product_in_catalog.properties.get(settings_portal.factory_number_code)
+            if (not product_factory_number_value or product_factory_number_value.get('valueEnum') == 'Нет'):
                 continue
             if product.factory_number and product.smart_id_factory_number:
                 continue
@@ -811,9 +813,9 @@ def send_equivalent(request):
     portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
-    sum_equivalent = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
-    if sum_equivalent['equivalent_count__sum']:
-        sum_equivalent = float(sum_equivalent['equivalent_count__sum'])
+    sum_equivalent = core_methods.count_sum_equivalent(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+    if sum_equivalent:
+        sum_equivalent = float(sum_equivalent)
         deal = DealB24(portal, deal_id)
         fields = {settings_portal.sum_equivalent_code: sum_equivalent}
         deal.update(fields)

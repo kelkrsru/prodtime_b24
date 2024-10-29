@@ -309,3 +309,12 @@ def create_shipment_task(portal, settings, deal_id):
     task_id = bx24_task.create(fields).get('result').get('task').get('id')
 
     return {'result': 'res', "info": task_id}
+
+
+def count_sum_equivalent(products):
+    """Метод подсчета суммарного эквивалента с учетом количества и скидок"""
+    sum_equivalent = 0
+    for product in products:
+        if product.equivalent_count:
+            sum_equivalent += product.equivalent_count * (1 - product.bonus / 100)
+    return round(sum_equivalent, 4)

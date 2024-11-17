@@ -662,14 +662,13 @@ def write_factory_number(request):
             if product.quantity == 1:
                 continue
             productrow = ProductRowB24(portal, product.product_id_b24)
-            product_in_catalog = ProductB24(portal, productrow.id_in_catalog)
+            product_in_catalog = ProductInCatalogB24(portal, productrow.id_in_catalog)
             product_factory_number_value = product_in_catalog.properties.get(settings_portal.factory_number_code)
-            if (not product_factory_number_value or product_factory_number_value.get('valueEnum') == 'Нет'):
+            if not product_factory_number_value or product_factory_number_value.get('valueEnum') == 'Нет':
                 continue
             if product.factory_number and product.smart_id_factory_number:
                 continue
-            if product.quantity > 1 and (int(product.quantity)
-                                         == product.quantity):
+            if product.quantity > 1 and (int(product.quantity) == product.quantity):
                 start_sort = product.sort
                 new_productrow = ProductRowB24(portal, 0)
                 for count in range(int(product.quantity)):
@@ -681,14 +680,17 @@ def write_factory_number(request):
                         'quantity': 1,
                         'discountTypeId': product.bonus_type_id,
                         'discountRate': str(product.bonus),
-                        'discountSum': str(
-                            product.bonus_sum / product.quantity),
+                        'discountSum': str(product.bonus_sum / product.quantity),
                         'taxRate': str(product.tax),
                         'measureCode': product.measure_code,
                         'measureName': product.measure_name,
                         'sort': start_sort
                     }
                     result = new_productrow.add(fields)
+                    if product.income:
+                        income = round(product.income/product.quantity, 2)
+                    else:
+                        income = 0
                     new_product = ProdTimeDeal.objects.create(
                         product_id_b24=result.get('productRow').get('id'),
                         name=product.name,
@@ -699,7 +701,7 @@ def write_factory_number(request):
                         price_netto=product.price_netto,
                         price_brutto=product.price_brutto,
                         quantity=1,
-                        income=round(product.income/product.quantity, 2),
+                        income=income,
                         is_change_income=product.is_change_income,
                         measure_code=product.measure_code,
                         measure_name=product.measure_name,
@@ -740,7 +742,7 @@ def write_factory_number(request):
         except Exception as ex:
             return JsonResponse({
                 'result': 'error',
-                'info': f'{ex.args[0]} для товара {product.name = }'
+                'info': f'{ex.args[0]} для товара1 {product.name = }'
             })
 
     products = list(
@@ -749,9 +751,9 @@ def write_factory_number(request):
     for product in products:
         try:
             productrow = ProductRowB24(portal, product.product_id_b24)
-            product_in_catalog = ProductB24(portal, productrow.id_in_catalog)
-            if not product_in_catalog.properties.get(
-                    settings_portal.factory_number_code):
+            product_in_catalog = ProductInCatalogB24(portal, productrow.id_in_catalog)
+            product_factory_number_value = product_in_catalog.properties.get(settings_portal.factory_number_code)
+            if not product_factory_number_value or product_factory_number_value.get('valueEnum') == 'Нет':
                 continue
             if product.factory_number and product.smart_id_factory_number:
                 continue

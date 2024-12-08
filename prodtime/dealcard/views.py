@@ -15,7 +15,7 @@ from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
-from core.bitrix24.bitrix24 import (ProductB24, DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
+from core.bitrix24.bitrix24 import (DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
                                     ProductInCatalogB24, ListB24, create_portal, UserB24, TemplateDocB24)
 from core.models import Portals, Responsible
 from dealcard.serializers import ProdTimeDealSerializer

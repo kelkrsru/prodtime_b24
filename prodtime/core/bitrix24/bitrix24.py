@@ -1,5 +1,6 @@
 import datetime
 import itertools
+from pprint import pprint
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -343,17 +344,16 @@ class TemplateDocB24(ObjB24):
         method_rest = 'crm.documentgenerator.document.add'
         params = {
             'templateId': template_id,
+            'providerClassName': '\\Bitrix\\DocumentGenerator\\DataProvider\\Rest',
             'entityTypeId': '2' if parent == 'deal' else '7',
             'entityId': parent_id,
             'values': values,
             'fields': {
                 'Table': {
-                    'PROVIDER': ('Bitrix\\DocumentGenerator\\DataProvider\\'
-                                 'ArrayDataProvider'),
+                    'PROVIDER': 'Bitrix\\DocumentGenerator\\DataProvider\\ArrayDataProvider',
                     'OPTIONS': {
                         'ITEM_NAME': 'Item',
-                        'ITEM_PROVIDER': ('Bitrix\\DocumentGenerator\\'
-                                          'DataProvider\\HashDataProvider'),
+                        'ITEM_PROVIDER': 'Bitrix\\DocumentGenerator\\DataProvider\\HashDataProvider',
                     }
                 }
             }

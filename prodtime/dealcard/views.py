@@ -268,18 +268,12 @@ def index(request):
 
     products = sorted(products, key=lambda prod: prod.get('sort'))
 
-    # products_for_max = ProdTimeDeal.objects.filter(
-    #     portal=portal, deal_id=deal_id, prod_time__isnull=False)
-    # if products_for_max:
-    #     max_prodtime = products_for_max.aggregate(Max('prod_time')).get(
-    #         'prod_time__max')
+    max_prodtime = core_methods.count_set_max_prodtime(member_id=member_id, deal_id=deal_id)
+    # max_prodtime = deal_bx.properties.get(settings_portal.max_prodtime_code)
+    # if max_prodtime:
+    #     max_prodtime = datetime.datetime.strptime(max_prodtime.split('T')[0], '%Y-%m-%d').date()
     # else:
     #     max_prodtime = 'Не задан'
-    max_prodtime = deal_bx.properties.get(settings_portal.max_prodtime_code)
-    if max_prodtime:
-        max_prodtime = datetime.datetime.strptime(max_prodtime.split('T')[0], '%Y-%m-%d').date()
-    else:
-        max_prodtime = 'Не задан'
 
     context = {
         'title': title,
@@ -315,8 +309,6 @@ def save(request):
     prodtime: ProdTimeDeal = get_object_or_404(ProdTimeDeal, pk=product_id)
     if type_field == 'name-for-print':
         prodtime.name_for_print = value
-    if type_field == 'prod-time':
-        prodtime.prod_time = value if value else None
     if value:
         if type_field == 'count-days':
             prodtime.count_days = value
@@ -389,6 +381,27 @@ def update_factory_number(request):
         return JsonResponse({'result': 'error', 'info': ex.args[0]})
 
     return JsonResponse({'result': 'success'})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def update_prodtime(request):
+    """Метод для срока производства и подсчета максимального срока производства."""
+    product_id = request.POST.get('product_id')
+    member_id = request.POST.get('member_id')
+    value = request.POST.get('value')
+    deal_id = request.POST.get('deal_id')
+
+    try:
+        prodtime = ProdTimeDeal.objects.get(id=product_id)
+        prodtime.prod_time = value if value else None
+        prodtime.save()
+        max_prodtime = core_methods.count_set_max_prodtime(member_id=member_id, deal_id=deal_id)
+
+    except Exception as ex:
+        return JsonResponse({'result': 'error', 'info': f'{ex.args[0]}: {ex.args[1]}'})
+
+    return JsonResponse({'result': 'success', 'max_prodtime': max_prodtime})
 
 
 @xframe_options_exempt
@@ -594,6 +607,7 @@ def copy_products(request):
 
         product_in_catalog.properties['name'] = new_name
         product_in_catalog.properties['iblockSectionId'] = new_section_id
+        product_in_catalog.properties['iblockSection'] = [new_section_id]
         product_in_catalog.properties['createdBy'] = settings_portal.responsible_id_copy_catalog
         product_in_catalog.properties['purchasingPrice'] = None
         product_in_catalog.properties['purchasingCurrency'] = 'RUB'
@@ -688,7 +702,7 @@ def write_factory_number(request):
                     }
                     result = new_productrow.add(fields)
                     if product.income:
-                        income = round(product.income/product.quantity, 2)
+                        income = round(product.income / product.quantity, 2)
                     else:
                         income = 0
                     new_product = ProdTimeDeal.objects.create(

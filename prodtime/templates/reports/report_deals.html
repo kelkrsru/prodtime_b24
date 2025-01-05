@@ -83,6 +83,7 @@
         <thead>
           <tr>
             <th>Товар</th>
+            <th>Макс. срок производства</th>
             <th>Заводской номер</th>
             {% if show_parent_dir == 'on' %}
               <th>Папка товара по каталогу</th>
@@ -116,6 +117,7 @@
           {% for product in products %}
             <tr>
             <td>{{ product.productName }}</td>
+            <td>{{ product.max_prodtime }}</td>
             <td>{{ product.factory_number }}</td>
             {% if show_parent_dir == 'on' %}
               <td>{{ product.section_name }}</td>
@@ -148,6 +150,7 @@
         </tbody>
         <tfoot>
           <tr>
+            <th></th>
             <th></th>
             {% if show_parent_dir == 'on' %}
               <th></th>

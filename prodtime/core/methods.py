@@ -4,12 +4,14 @@ import json
 import logging
 
 from django.core.exceptions import BadRequest
+from django.db.models import Max
 from django.utils import timezone
 from pybitrix24 import Bitrix24
 
-from core.bitrix24.bitrix24 import UserB24, DealB24, ProductRowB24, TaskB24, SmartProcessB24
+from core.bitrix24.bitrix24 import UserB24, DealB24, ProductRowB24, TaskB24, SmartProcessB24, create_portal
 from core.models import TemplateDocFields
-from dealcard.models import ProdTimeDeal
+from dealcard.models import ProdTimeDeal, Deal
+from settings.models import SettingsPortal
 
 logger = logging.getLogger(__name__)
 SEPARATOR = '*' * 40
@@ -318,3 +320,21 @@ def count_sum_equivalent(products):
         if product.equivalent_count:
             sum_equivalent += product.equivalent_count * (1 - product.bonus / 100)
     return round(sum_equivalent, 4)
+
+
+def count_set_max_prodtime(member_id, deal_id):
+    """Метод для вычисления и установки максимального срока производства."""
+    portal = create_portal(member_id)
+    settings_portal = SettingsPortal.objects.get(portal=portal)
+    deal = Deal.objects.get(deal_id=deal_id)
+    products_for_max = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id, prod_time__isnull=False)
+    if products_for_max:
+        max_prodtime = products_for_max.aggregate(Max('prod_time')).get('prod_time__max')
+        deal.max_prodtime = max_prodtime
+        deal.save()
+    else:
+        max_prodtime = 'Не задан'
+    deal_bx = DealB24(portal=portal, id_obj=deal_id)
+    fields = {settings_portal.max_prodtime_code: max_prodtime.isoformat() if type(max_prodtime) != str else ''}
+    deal_bx.update(fields)
+    return max_prodtime

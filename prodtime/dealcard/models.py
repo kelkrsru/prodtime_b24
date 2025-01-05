@@ -101,7 +101,6 @@ class Deal(Entity):
         null=True,
         blank=True,
     )
-
     invoice_number = models.CharField(
         max_length=255,
         verbose_name='Номер счета',
@@ -109,6 +108,7 @@ class Deal(Entity):
         null=True,
         blank=True,
     )
+    max_prodtime = models.DateField('Максимальный срок производства', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Параметры сделки'

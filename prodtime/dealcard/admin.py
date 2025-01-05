@@ -19,6 +19,7 @@ class ProdTimeDealAdmin(admin.ModelAdmin):
 class DealAdmin(admin.ModelAdmin):
     list_display = ('deal_id', 'general_number', 'last_factory_number',
                     'portal')
+    search_fields = ('deal_id',)
 
 
 admin.site.register(ProdTimeDeal, ProdTimeDealAdmin)

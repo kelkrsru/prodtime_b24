@@ -422,6 +422,7 @@ def create_articles(request):
 
         product_in_catalog.properties['name'] = new_name
         product_in_catalog.properties['iblockSectionId'] = new_section_id
+        product_in_catalog.properties['iblockSection'] = [new_section_id]
         product_in_catalog.properties['createdBy'] = (
             settings_portal.responsible_id_copy_catalog)
         product_in_catalog.properties['purchasingPrice'] = None

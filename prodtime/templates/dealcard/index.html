@@ -28,7 +28,7 @@
                 <span>Максимальный срок</span>
               </div>
               <div class="card-body">
-                <span id="max-prodtime">{{ max_prodtime }}</span>
+                <span id="max-prodtime">{{ max_prodtime|date:'d.m.Y' }}</span>
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@
     datepicker_input.blur(function() {
         const value = $(this).val();
         const td = $(this).parent("td");
-        sendToServer(td.data("id"),value,'prod-time',this);
+        updateProdTime(td.data("id"),value,this,'{{ deal_id }}','{{ member_id }}');
     });
 
     let number_input = $(".number-input")
@@ -384,6 +384,35 @@
                 else if(response.result === 'success'){
                     $(control).removeClass('text-danger');
                     $(control).attr('readonly', '');
+                }
+            })
+            .fail(function () {
+                $(control).removeClass('text-success');
+                $(control).addClass('text-danger');
+            });
+    }
+
+    function updateProdTime(product_id, value, control, deal_id, member_id) {
+        $.ajax({
+            url: "{% url 'dealcard:update-prodtime' %}",
+            type: "POST",
+            data: {product_id: product_id, value: value, member_id: member_id, deal_id: deal_id},
+        })
+            .done(function (response) {
+                if(response.result === 'error'){
+                    alert(response.info);
+                    $(control).addClass('text-danger');
+                }
+                else if(response.result === 'success'){
+                    $(control).removeClass('text-danger');
+                    $(control).addClass('text-success');
+
+                    if (response.max_prodtime === 'Не задан') {
+                        document.querySelector('#max-prodtime').innerHTML = 'Не задан';
+                    } else {
+                        const max_prodtime = new Date(response.max_prodtime);
+                        document.querySelector('#max-prodtime').innerHTML = `${max_prodtime.getDate()}.${max_prodtime.getMonth() + 1}.${max_prodtime.getFullYear()}`;
+                    }
                 }
             })
             .fail(function () {

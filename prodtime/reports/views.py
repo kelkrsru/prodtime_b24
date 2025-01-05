@@ -34,8 +34,7 @@ def report_deals(request):
         direct_costs_fact = (prodtime_db.direct_costs_fact if
                              prodtime_db.direct_costs_fact else 0)
         if type(direct_costs) == decimal.Decimal:
-            direct_costs_div = round((direct_costs_fact - direct_costs) /
-                                     direct_costs * 100, 2)
+            direct_costs_div = round((direct_costs_fact - direct_costs) / direct_costs * 100, 2)
         else:
             direct_costs_div = str_blank
         if direct_costs_fact:
@@ -45,23 +44,17 @@ def report_deals(request):
         else:
             direct_costs_sum = 0
 
-        standard_hours = (prodtime_db.standard_hours if
-                          prodtime_db.standard_hours else str_blank)
-        standard_hours_fact = (prodtime_db.standard_hours if
-                               prodtime_db.standard_hours_fact else 0)
+        standard_hours = prodtime_db.standard_hours if prodtime_db.standard_hours else str_blank
+        standard_hours_fact = prodtime_db.standard_hours if prodtime_db.standard_hours_fact else 0
         if type(standard_hours) == decimal.Decimal:
-            standard_hours_div = round((standard_hours_fact - standard_hours) /
-                                       standard_hours * 100, 2)
+            standard_hours_div = round((standard_hours_fact - standard_hours) / standard_hours * 100, 2)
         else:
             standard_hours_div = str_blank
 
-        materials = (prodtime_db.materials if prodtime_db.materials
-                     else str_blank)
-        materials_fact = (prodtime_db.materials if prodtime_db.materials_fact
-                          else 0)
+        materials = prodtime_db.materials if prodtime_db.materials else str_blank
+        materials_fact = prodtime_db.materials if prodtime_db.materials_fact else 0
         if type(materials) == decimal.Decimal:
-            materials_div = round((materials_fact - materials) / materials *
-                                  100, 2)
+            materials_div = round((materials_fact - materials) / materials * 100, 2)
         else:
             materials_div = str_blank
 
@@ -73,6 +66,13 @@ def report_deals(request):
         sum_equivalent = prodtime.equivalent_count
         margin = round(sum_price - direct_costs_sum, 2)
         factory_number = prodtime_db.factory_number if prodtime_db.factory_number else ''
+
+        try:
+            deal_db = Deal.objects.get(deal_id=prodtime_db.deal_id)
+            max_prodtime = deal_db.max_prodtime.strftime('%d.%m.%Y') if deal_db.max_prodtime else 'Не задан'
+        except ObjectDoesNotExist:
+            max_prodtime = 'Не задан'
+
         try:
             effectiveness = round((sum_price - direct_costs_sum) / sum_price * 100, 2)
         except Exception:
@@ -96,7 +96,8 @@ def report_deals(request):
             'margin': margin,
             'effectiveness': effectiveness,
             'income': income,
-            'factory_number': factory_number
+            'factory_number': factory_number,
+            'max_prodtime': max_prodtime
         }
 
     def _get_result_for_products(products_list):

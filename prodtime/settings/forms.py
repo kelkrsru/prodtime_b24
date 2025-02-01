@@ -62,4 +62,4 @@ class SettingsGeneralPortalForm(forms.ModelForm):
 
     class Meta:
         model = SettingsPortal
-        fields = ('is_admin_code', 'max_prodtime_code',)
+        fields = ('is_admin_code', 'max_prodtime_code', 'num_invoice_code', 'token')

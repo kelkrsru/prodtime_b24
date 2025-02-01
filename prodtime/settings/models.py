@@ -315,6 +315,10 @@ class SettingsPortal(models.Model):
         default='UF_CRM_1678710729823',
         max_length=30,
     )
+    num_invoice_code = models.CharField('Код свойства Номер счета', help_text='Код свойства Номер счета в сделке',
+                                        default='UF_CRM_1661507258282', max_length=30, )
+    token = models.CharField('Токен', help_text='Токен для обновления сделки через webhook',
+                             default='eQQOKDYMN?DY3IXy6aae9GB0AF2wtk30xtDyLo=2OIFo6HSuDVDf2h0=52BS3Xx4', max_length=256)
 
     class Meta:
         verbose_name = 'Настройка портала'
@@ -328,6 +332,7 @@ class SettingsPortal(models.Model):
 
 class SettingsForReportStock(models.Model):
     """Модель настроек для отчета по остаткам"""
+
     class ColorBackground(models.TextChoices):
         PRIMARY = 'bg-primary', 'Синий'
         SECONDARY = 'bg-secondary', 'Серый'

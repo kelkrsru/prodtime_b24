@@ -86,6 +86,8 @@ class ProdTimeDeal(ProdTime):
         verbose_name = 'Срок производства в сделке'
         verbose_name_plural = 'Сроки производства в сделке'
         ordering = ['portal', 'deal_id', 'pk']
+        unique_together = ['product_id_b24', 'portal']
+        indexes = [models.Index(fields=['product_id_b24', 'portal'], name='prod_id_b24_portal_index')]
 
 
 class Deal(Entity):

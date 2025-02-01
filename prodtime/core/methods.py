@@ -9,12 +9,32 @@ from django.utils import timezone
 from pybitrix24 import Bitrix24
 
 from core.bitrix24.bitrix24 import UserB24, DealB24, ProductRowB24, TaskB24, SmartProcessB24, create_portal
-from core.models import TemplateDocFields
+from core.models import TemplateDocFields, Responsible
 from dealcard.models import ProdTimeDeal, Deal
 from settings.models import SettingsPortal
 
 logger = logging.getLogger(__name__)
 SEPARATOR = '*' * 40
+
+codes_values = {
+    'ID': ['product_id_b24', 'int'],
+    'OWNER_ID': ['deal_id', 'int'],
+    'PRODUCT_NAME': ['name', 'str'],
+    'PRICE': ['price', 'decimal'],
+    'PRICE_EXCLUSIVE': ['price_exclusive', 'decimal'],
+    'PRICE_NETTO': ['price_netto', 'decimal'],
+    'PRICE_BRUTTO': ['price_brutto', 'decimal'],
+    'PRICE_ACCOUNT': ['price_account', 'decimal'],
+    'QUANTITY': ['quantity', 'decimal'],
+    'MEASURE_CODE': ['measure_code', 'int'],
+    'MEASURE_NAME': ['measure_name', 'str'],
+    'DISCOUNT_TYPE_ID': ['bonus_type_id', 'int'],
+    'DISCOUNT_RATE': ['bonus', 'decimal'],
+    'DISCOUNT_SUM': ['bonus_sum', 'decimal'],
+    'TAX_RATE': ['tax', 'decimal'],
+    'TAX_INCLUDED': ['tax_included', 'bool'],
+    'SORT': ['sort', 'int'],
+}
 
 
 def check_request(request):
@@ -47,10 +67,22 @@ def initial_check(request, entity_type='deal_id'):
     return member_id, entity_id, auth_id
 
 
+def initial_check_with_token(request, entity_type='deal_id'):
+    """Метод начальной проверки на тип запроса с токеном."""
+
+    if request.method == 'GET' or request.method == 'POST':
+        member_id = request.GET.get('member_id')
+        entity_id = int(request.GET.get(entity_type))
+        token = request.GET.get('token')
+    else:
+        raise BadRequest
+
+    return member_id, entity_id, token
+
+
 def get_current_user(request, auth_id, portal, is_admin_code):
     """Метод получения текущего пользователя."""
     user_id = 0
-    print(auth_id)
 
     if auth_id:
         bx24_for_user = Bitrix24(portal.name)
@@ -79,6 +111,22 @@ def get_current_user(request, auth_id, portal, is_admin_code):
     }
 
 
+def get_responsible_deal(portal, deal_b24):
+    """Метод получения ответственного за сделку и создания его в БД приложения."""
+
+    responsible_id = int(deal_b24.responsible)
+    responsible_b24 = UserB24(portal, responsible_id)
+    responsible, created = Responsible.objects.update_or_create(
+        id_b24=responsible_id,
+        defaults={
+            'first_name': responsible_b24.properties[0].get('NAME'),
+            'last_name': responsible_b24.properties[0].get('LAST_NAME'),
+            'position': responsible_b24.properties[0].get('WORK_POSITION'),
+        },
+    )
+    return responsible
+
+
 def calculation_income(products, settings, is_change=True):
     """Метод для расчета прибыли."""
 
@@ -92,7 +140,9 @@ def calculation_income(products, settings, is_change=True):
             product.save()
     else:
         products.income = _calculation(products.sum, settings.income_percent)
+        logger.info(f'Для свойства income установлено значение {products.income}')
         products.is_change_income = is_change
+        logger.info(f'Для свойства is_change_income установлено значение True')
         products.save()
 
 
@@ -338,3 +388,25 @@ def count_set_max_prodtime(member_id, deal_id):
     fields = {settings_portal.max_prodtime_code: max_prodtime.isoformat() if type(max_prodtime) != str else ''}
     deal_bx.update(fields)
     return max_prodtime
+
+
+def set_fields_from_catalog_b24(product, settings_portal, product_in_catalog):
+    """Метод для установки значений полей, значения которых берутся из каталога товаров Битрикс24"""
+    name_fields = ['direct_costs', 'standard_hours', 'materials', 'prodtime_str']
+    for name_field in name_fields:
+        if getattr(product, 'is_change_' + name_field):
+            logger.info(f'Свойство is_change_{name_field}=True. Пропускаем.')
+            continue
+        else:
+            code_field = getattr(settings_portal, name_field + '_code')
+            value_field = product_in_catalog.properties.get(code_field)
+            if type(value_field) is dict and 'value' in value_field:
+                if name_field == 'prodtime_str':
+                    value = value_field.get('value')
+                else:
+                    value = round(decimal.Decimal(value_field.get('value')), 2)
+                setattr(product, name_field, value)
+            else:
+                setattr(product, name_field, '' if type(getattr(product, name_field)) == str else 0)
+        logger.info(f'Для свойства {name_field} установлено значение {getattr(product, name_field)}')
+        product.save()

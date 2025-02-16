@@ -794,8 +794,7 @@ def write_factory_number(request):
 
     try:
         deal = Deal.objects.get(deal_id=deal_id, portal=portal)
-        products = list(
-            ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+        products = list(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
         products = sorted(products, key=lambda prod: prod.sort)
         deal_b24 = DealB24(portal, deal_id)
     except Exception as ex:
@@ -888,11 +887,10 @@ def write_factory_number(request):
         except Exception as ex:
             return JsonResponse({
                 'result': 'error',
-                'info': f'{ex.args[0]} для товара1 {product.name = }'
+                'info': f'Ошибка: {ex.args[0]}. Описание ошибки: {ex.args[1]} для товара {product.name = }'
             })
 
-    products = list(
-        ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+    products = list(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
     products = sorted(products, key=lambda prod: prod.sort)
     for product in products:
         try:
@@ -911,8 +909,7 @@ def write_factory_number(request):
             deal.last_factory_number += 1
             deal.save()
             i += 1
-            smart_factory_number = SmartProcessB24(
-                portal, settings_portal.smart_factory_number_id)
+            smart_factory_number = SmartProcessB24(portal, settings_portal.smart_factory_number_id)
             fields = {
                 'title': product.factory_number,
                 'assigned_by_id': deal_b24.properties.get('ASSIGNED_BY_ID'),

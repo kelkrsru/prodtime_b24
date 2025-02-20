@@ -4,6 +4,7 @@
 {% block title %}Карточка сделки{% endblock %}
 {% block content %}
   {% include 'includes/modals.html' %}
+  {% load user_filters %}
   <div id="div-loader" style="width: 100%; height: 100%; opacity: 0.5; position: fixed; background: #bacbe6; z-index: 100; text-align: center; display: none">
     {% load static %}
     <img src="{% static 'img/loading.gif' %}" alt="loading gif">
@@ -58,12 +59,12 @@
     <table class="table table-striped align-baseline" id="main-table">
       <thead>
         <tr>
-          <th scope="col" width="3%" id="num">#</th>
+          <th scope="col" width="2%" id="num">#</th>
           <th scope="col" width="10%" id="prod">Товар</th>
           <th scope="col" width="10%" id="print-form">В печатную форму</th>
-          <th scope="col" width="7%" id="price">Цена, руб.</th>
-          <th scope="col" width="4%" id="count">Кол-во</th>
-          <th scope="col" width="4%" id="unit">Ед. изм.</th>
+          <th scope="col" width="6%" id="price">Цена, руб.</th>
+          <th scope="col" width="3%" id="count">Кол-во</th>
+          <th scope="col" width="3%" id="unit">Ед. изм.</th>
 
           <th scope="col" id="bonus" class="td-hidden">Скидка, %</th>
           <th scope="col" id="bonus-sum" class="td-hidden">Сумма скидки, руб.</th>
@@ -72,10 +73,13 @@
 
           <th scope="col" width="7%" id="sum">Сумма, руб.</th>
 {#          <th scope="col" width="8%" id="count-days">Кол-во раб. дней</th>#}
-          <th scope="col" width="6%" id="equivalent">Экв-нт за 1 ед.</th>
+          <th scope="col" width="7%" id="equivalent">Экв-нт за 1 ед.</th>
           <th scope="col" width="7%" id="prod-time">Срок производства</th>
           <th scope="col" width="7%" id="direct-costs">Прямые затраты за 1 ед без НДС</th>
-          <th scope="col" width="6%" id="standard-hours">Нормочасы за 1 ед</th>
+          <th scope="col" width="5%" id="standard-hours">НЧ Уч.1 за 1 ед</th>
+          <th scope="col" width="5%" id="standard-hours2">НЧ Уч.2 за 1 ед</th>
+          <th scope="col" width="5%" id="standard-hours3">НЧ Уч.3 за 1 ед</th>
+          <th scope="col" width="5%" id="standard-hours4">НЧ Уч.4 за 1 ед</th>
           <th scope="col" width="7%" id="materials">Материалы за 1 ед без НДС</th>
           <th scope="col" width="7%" id="factory-number">Зав. номер</th>
           <th scope="col" width="3%" id="edit-number">Изменить номер</th>
@@ -104,26 +108,44 @@
 {#              <td data-id="{{ product.id }}"><input class="form-control number-input" type="number" name="count-days-1"#}
 {#                           value="{{ product.count_days }}"></td> {# Количество рабочих дней #}
               <td data-id="{{ product.id }}"><input class="form-control equivalent-input" type="number" name="equivalent-1"
-                           value="{{ product.equivalent }}"></td> {# Эквивалент #}
+                           value="{{ product.equivalent|replace_comma_to_dot }}"></td> {# Эквивалент #}
               <td data-id="{{ product.id }}"><input type="date" class="form-control datepicker-input"
                          name="prod-time-1" value="{{ product.prod_time|date:'Y-m-d' }}"></td> {# Срок производства #}
               <td data-id="{{ product.id }}">
                 <span>План</span>
-                <input class="form-control direct-costs-input" type="number" value="{{ product.direct_costs }}">
+                <input class="form-control direct-costs-input" type="number" value="{{ product.direct_costs|replace_comma_to_dot }}">
                 <span>Факт</span>
-                <input class="form-control direct-costs-fact-input" type="number" value="{{ product.direct_costs_fact }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+                <input class="form-control direct-costs-fact-input" type="number" value="{{ product.direct_costs_fact|replace_comma_to_dot }}" {% if user.is_admin != '1' %} disabled {% endif %}>
               </td> {# Прямые затраты #}
               <td data-id="{{ product.id }}">
                 <span>План</span>
-                <input class="form-control standard-hours-input" type="number" value="{{ product.standard_hours }}">
+                <input class="form-control standard-hours-input" type="number" value="{{ product.standard_hours|replace_comma_to_dot }}">
                 <span>Факт</span>
-                <input class="form-control standard-hours-fact-input" type="number" value="{{ product.standard_hours_fact }}" {% if user.is_admin != '1' %} disabled {% endif %}>
-              </td> {# Нормочасы #}
+                <input class="form-control standard-hours-fact-input" type="number" value="{{ product.standard_hours_fact|replace_comma_to_dot }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# НЧ Уч.1 #}
+            <td data-id="{{ product.id }}">
+                <span>План</span>
+                <input class="form-control standard-hours2-input" type="number" value="{{ product.standard_hours2|replace_comma_to_dot }}">
+                <span>Факт</span>
+                <input class="form-control standard-hours2-fact-input" type="number" value="{{ product.standard_hours2_fact|replace_comma_to_dot }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# НЧ Уч.2 #}
+            <td data-id="{{ product.id }}">
+                <span>План</span>
+                <input class="form-control standard-hours3-input" type="number" value="{{ product.standard_hours3|replace_comma_to_dot }}">
+                <span>Факт</span>
+                <input class="form-control standard-hours3-fact-input" type="number" value="{{ product.standard_hours3_fact|replace_comma_to_dot }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# НЧ Уч.3 #}
+            <td data-id="{{ product.id }}">
+                <span>План</span>
+                <input class="form-control standard-hours4-input" type="number" value="{{ product.standard_hours4|replace_comma_to_dot }}">
+                <span>Факт</span>
+                <input class="form-control standard-hours4-fact-input" type="number" value="{{ product.standard_hours4_fact|replace_comma_to_dot }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+              </td> {# НЧ Уч.4 #}
               <td data-id="{{ product.id }}">
                 <span>План</span>
-                <input class="form-control materials-input" type="number" value="{{ product.materials }}">
+                <input class="form-control materials-input" type="number" value="{{ product.materials|replace_comma_to_dot }}">
                 <span>Факт</span>
-                <input class="form-control materials-fact-input" type="number" value="{{ product.materials_fact }}" {% if user.is_admin != '1' %} disabled {% endif %}>
+                <input class="form-control materials-fact-input" type="number" value="{{ product.materials_fact|replace_comma_to_dot }}" {% if user.is_admin != '1' %} disabled {% endif %}>
               </td> {# Материалы #}
               {% if product.factory_number %}
                 <td data-id="{{ product.id }}"><input id="{{ product.id }}" type="text" class="form-control factory-number-input"
@@ -298,6 +320,72 @@
         const value = $(this).val();
         const td = $(this).parent("td");
         sendToServer(td.data("id"),value,'standard-hours-fact',this);
+    });
+
+    let standard_hours2 = $(".standard-hours2-input")
+    standard_hours2.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours2.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours2',this);
+    });
+
+    let standard_hours2_fact = $(".standard-hours2-fact-input")
+    standard_hours2_fact.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours2_fact.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours2-fact',this);
+    });
+
+    let standard_hours3 = $(".standard-hours3-input")
+    standard_hours3.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours3.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours3',this);
+    });
+
+    let standard_hours3_fact = $(".standard-hours3-fact-input")
+    standard_hours3_fact.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours3_fact.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours3-fact',this);
+    });
+
+    let standard_hours4 = $(".standard-hours4-input")
+    standard_hours4.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours4.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours4',this);
+    });
+
+    let standard_hours4_fact = $(".standard-hours4-fact-input")
+    standard_hours4_fact.focus(function() {
+        $(this).removeClass('text-success');
+        $(this).removeClass('text-danger');
+    });
+    standard_hours4_fact.blur(function() {
+        const value = $(this).val();
+        const td = $(this).parent("td");
+        sendToServer(td.data("id"),value,'standard-hours4-fact',this);
     });
 
     let materials = $(".materials-input")

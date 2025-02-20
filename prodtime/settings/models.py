@@ -268,13 +268,22 @@ class SettingsPortal(models.Model):
         default='property90',
         max_length=30,
     )
-    standard_hours_code = models.CharField(
-        verbose_name='Код свойства Нормочасы',
-        help_text='Код свойства Нормочасы в каталоге товаров. Код, '
-                  'который отдает метод "crm.product.get"',
-        default='property91',
-        max_length=30,
-    )
+    standard_hours_code = models.CharField('Код свойства НЧ Уч.1',
+                                           help_text='Код свойства НЧ Уч.1 в каталоге товаров. '
+                                                     'Код, который отдает метод "crm.product.get"',
+                                           default='property00', max_length=30, )
+    standard_hours2_code = models.CharField('Код свойства НЧ Уч.2',
+                                            help_text='Код свойства НЧ Уч.2 в каталоге товаров. '
+                                                      'Код, который отдает метод "crm.product.get"',
+                                            default='property00', max_length=30, )
+    standard_hours3_code = models.CharField('Код свойства НЧ Уч.3',
+                                            help_text='Код свойства НЧ Уч.3 в каталоге товаров. '
+                                                      'Код, который отдает метод "crm.product.get"',
+                                            default='property00', max_length=30, )
+    standard_hours4_code = models.CharField('Код свойства НЧ Уч.4',
+                                            help_text='Код свойства НЧ Уч.4 в каталоге товаров. '
+                                                      'Код, который отдает метод "crm.product.get"',
+                                            default='property00', max_length=30, )
     materials_code = models.CharField(
         verbose_name='Код свойства Материалы',
         help_text='Код свойства Материалы в каталоге товаров. Код, '

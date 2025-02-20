@@ -49,6 +49,7 @@ def get_item(dictionary, key):
     return dictionary.get(key)
 
 
-register.filter('addclass', addclass)
-register.filter('fieldtype', fieldtype)
-register.filter('emptyvalue', emptyvalue)
+@register.filter
+def replace_comma_to_dot(value):
+    """Заменяет все вхождения запятой на точку."""
+    return str(value).replace(',', '.') if value else '0'

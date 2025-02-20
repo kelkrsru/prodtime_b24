@@ -7,7 +7,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 import core.methods as core_methods
 
-from typing import Dict, Any
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -17,8 +16,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
 from core.bitrix24.bitrix24 import (DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
-                                    ProductInCatalogB24, ListB24, create_portal, UserB24, TemplateDocB24)
-from core.models import Portals, Responsible
+                                    ProductInCatalogB24, ListB24, create_portal, TemplateDocB24)
+from core.models import Portals
 from dealcard.serializers import ProdTimeDealSerializer
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
 from dealcard.models import Deal, ProdTimeDeal
@@ -37,204 +36,94 @@ def index(request):
     template: str = 'dealcard/index.html'
     title: str = 'Страница карточки сделки'
 
+    logger.info(f'{SEPARATOR}')
+    logger.info(f'Запущено приложение Срок производства')
     try:
         member_id, deal_id, auth_id = core_methods.initial_check(request)
+        logger.info(f'Полученные параметры из запроса: {member_id=}, {deal_id=}')
     except BadRequest:
-        return render(request, 'error.html', {
-            'error_name': 'QueryError',
-            'error_description': 'Неизвестный тип запроса'
-        })
+        logger.error(f'Ошибка запроса: неизвестный тип запроса - {request.method=}')
+        return render(request, 'error.html', {'error_name': 'QueryError',
+                                              'error_description': 'Неизвестный тип запроса'})
     portal: Portals = create_portal(member_id)
     settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
     user_info = core_methods.get_current_user(request, auth_id, portal, settings_portal.is_admin_code)
     year = int(datetime.date.today().year)
-    Numeric.objects.get_or_create(portal=portal, year=year,
-                                  defaults={'last_number': 0})
+    Numeric.objects.get_or_create(portal=portal, year=year, defaults={'last_number': 0})
 
     try:
         deal_bx = DealB24(portal, deal_id)
         deal_bx.get_all_products()
+        logger.debug(f'Полученные товарные позиции сделки:{NEW_STR}{deal_bx.products}')
 
-        responsible_id = int(deal_bx.responsible)
-        responsible_b24 = UserB24(portal, responsible_id)
-        responsible, created = Responsible.objects.update_or_create(
-            id_b24=responsible_id,
-            defaults={
-                'first_name': responsible_b24.properties[0].get('NAME'),
-                'last_name': responsible_b24.properties[0].get('LAST_NAME'),
-                'position': responsible_b24.properties[0].get('WORK_POSITION'),
-            },
-        )
-
-        deal, created = Deal.objects.get_or_create(
-            portal=portal, deal_id=deal_bx.id,
-            defaults={'general_number': '000.'}
-        )
-        deal.responsible = responsible
-        deal.invoice_number = deal_bx.properties.get('UF_CRM_1661507258282')
+        deal, created = Deal.objects.get_or_create(portal=portal, deal_id=deal_bx.id,
+                                                   defaults={'general_number': '000.'})
+        logger.info(f'Сделка: {created=} {deal.deal_id=}')
+        deal.responsible = core_methods.get_responsible_deal(portal, deal_bx)
+        logger.info(f'Ответственный за сделку: {deal.responsible.id_b24=} {deal.responsible.last_name} '
+                    f'{deal.responsible.first_name}')
+        deal.invoice_number = deal_bx.properties.get(settings_portal.num_invoice_code)
+        logger.info(f'Номер счета для сделки: {deal.invoice_number=}')
         deal.save()
-    except RuntimeError as ex:
-        return render(request, 'error.html', {
-            'error_name': ex.args[0],
-            'error_description': ex.args[1]
-        })
     except Exception as ex:
-        return render(request, 'error.html', {
-            'error_name': ex.args[0],
-            'error_description': ex.args[0]
-        })
+        logger.error(f'Ошибка при получении или создании сделки: Ошибка={ex.args[0]}, Описание={ex.args[1]}')
+        return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
-    products = []
+    logger.info(f'Производим перебор товарных позиций из сделки битрикс24')
     for product in deal_bx.products:
+        logger.info(f'Товарная позиция: {product.get("PRODUCT_ID")=}')
         # Проверка, что товар является товаром каталога
         try:
             if not product['PRODUCT_ID'] or int(product['PRODUCT_ID']) <= 0:
                 raise RuntimeError('Error', 'Product not found')
-            product_in_catalog = ProductInCatalogB24(
-                portal, int(product['PRODUCT_ID']))
+            product_in_catalog = ProductInCatalogB24(portal, int(product['PRODUCT_ID']))
+            logger.debug(f'Товар является товаром каталога:{NEW_STR}{product_in_catalog.properties=}')
         except RuntimeError as ex:
+            logger.error(f'Товар ID={product.get("ID")} Name={product.get("PRODUCT_NAME")} не найден в каталоге товаров'
+                         f' Битрикс24')
             return render(request, 'error.html', {
                 'error_name': ex.args[1],
-                'error_description': f'Товар {product["PRODUCT_NAME"]} '
-                                     f'не найден в каталоге товаров Битрикс24'
+                'error_description': f'Товар {product["PRODUCT_NAME"]} не найден в каталоге товаров Битрикс24'
             })
 
-        product_value: Dict[str, Any] = {
-            'product_id_b24': int(product['ID']),
-            'name': product['PRODUCT_NAME'],
-            'name_for_print': product['PRODUCT_NAME'],
-            'price': round(decimal.Decimal(product['PRICE']), 2),
-            'price_acc': round(decimal.Decimal(product['PRICE_ACCOUNT']), 2),
-            'price_exs': round(decimal.Decimal(product['PRICE_EXCLUSIVE']), 2),
-            'price_netto': round(decimal.Decimal(product['PRICE_NETTO']), 2),
-            'price_brutto': round(decimal.Decimal(product['PRICE_BRUTTO']), 2),
-            'quantity': round(decimal.Decimal(product['QUANTITY']), 2),
-            'measure_code': int(product['MEASURE_CODE']),
-            'measure_name': product['MEASURE_NAME'],
-            'bonus_type_id': int(product['DISCOUNT_TYPE_ID']),
-            'bonus': round(decimal.Decimal(product['DISCOUNT_RATE']), 2),
-            'bonus_sum': round(decimal.Decimal(product['DISCOUNT_SUM']), 2),
-            'tax': 0 if not product['TAX_RATE'] else round(
-                decimal.Decimal(product['TAX_RATE']), 2),
-            'tax_included': True if product['TAX_INCLUDED'] == 'Y' else False,
-            'sort': int(product['SORT']),
-        }
-        product_value['tax_sum'] = round(product_value['quantity'] *
-                                         product_value['price_exs'] *
-                                         product_value['tax'] / 100, 2)
-        product_value['sum'] = round(product_value['quantity']
-                                     * product_value['price_acc'], 2)
-        try:
-            prodtime: ProdTimeDeal = ProdTimeDeal.objects.get(
-                product_id_b24=product_value['product_id_b24']
-            )
-            product_value['name_for_print'] = prodtime.name_for_print
-            product_value['prod_time'] = prodtime.prod_time
-            product_value['count_days'] = str(prodtime.count_days).replace(',',
-                                                                           '.')
-            product_value['finish'] = prodtime.finish
-            product_value['made'] = prodtime.made
-            product_value['smart_id_factory_number'] = (
-                prodtime.smart_id_factory_number)
-            product_value['factory_number'] = prodtime.factory_number
-            product_value['direct_costs_fact'] = (
-                str(prodtime.direct_costs_fact) if prodtime.direct_costs_fact
-                else '0')
-            product_value['standard_hours_fact'] = (
-                str(prodtime.standard_hours_fact) if
-                prodtime.standard_hours_fact else '0')
-            product_value['materials_fact'] = (
-                str(prodtime.materials_fact) if prodtime.materials_fact
-                else '0')
-            product_value['id'] = prodtime.pk
-            prodtime.name = product_value['name']
-            prodtime.price = product_value['price']
-            prodtime.price_account = product_value['price_acc']
-            prodtime.price_exclusive = product_value['price_exs']
-            prodtime.price_netto = product_value['price_netto']
-            prodtime.price_brutto = product_value['price_brutto']
-            prodtime.quantity = product_value['quantity']
-            prodtime.measure_code = product_value['measure_code']
-            prodtime.measure_name = product_value['measure_name']
-            prodtime.bonus_type_id = product_value['bonus_type_id']
-            prodtime.bonus = product_value['bonus']
-            prodtime.bonus_sum = product_value['bonus_sum']
-            prodtime.tax = product_value['tax']
-            prodtime.tax_included = product_value['tax_included']
-            prodtime.tax_sum = product_value['tax_sum']
-            prodtime.sum = product_value['sum']
-            prodtime.sort = product_value['sort']
-            prodtime.save()
-        except ObjectDoesNotExist:
-            prodtime: ProdTimeDeal = ProdTimeDeal.objects.create(
-                product_id_b24=product_value['product_id_b24'],
-                name=product_value['name'],
-                name_for_print=product_value['name_for_print'],
-                price=product_value['price'],
-                price_account=product_value['price_acc'],
-                price_exclusive=product_value['price_exs'],
-                price_netto=product_value['price_netto'],
-                price_brutto=product_value['price_brutto'],
-                quantity=product_value['quantity'],
-                measure_code=product_value['measure_code'],
-                measure_name=product_value['measure_name'],
-                bonus_type_id=product_value['bonus_type_id'],
-                bonus=product_value['bonus'],
-                bonus_sum=product_value['bonus_sum'],
-                tax=product_value['tax'],
-                tax_included=product_value['tax_included'],
-                tax_sum=product_value['tax_sum'],
-                sum=product_value['sum'],
-                sort=product_value['sort'],
-                deal_id=deal_id,
-                portal=portal,
-            )
-            product_value['id'] = prodtime.pk
-
-        # Работа со сроком производства
-
-        # Работа с прямыми затратами, нормочасами, материалами,
-        # сроком производства из каталога
-        name_fields = ['direct_costs', 'standard_hours', 'materials',
-                       'prodtime_str']
-        for name_field in name_fields:
-            if getattr(prodtime, 'is_change_' + name_field):
-                product_value[name_field] = (str(getattr(prodtime, name_field))
-                                             .replace(',', '.'))
-            else:
-                code_field = getattr(settings_portal, name_field + '_code')
-                value_field = product_in_catalog.properties.get(code_field)
-                if type(value_field) is dict and 'value' in value_field:
-                    if name_field == 'prodtime_str':
-                        value = value_field.get('value')
-                    else:
-                        value = round(decimal.Decimal(
-                            value_field.get('value')), 2)
-                    product_value[name_field] = str(value)
-                    setattr(prodtime, name_field, value)
+        product_value: dict = dict()
+        for key, value in product.items():
+            if key in core_methods.codes_values:
+                if core_methods.codes_values.get(key)[1] == 'int':
+                    new_value = int(value)
+                elif core_methods.codes_values.get(key)[1] == 'decimal':
+                    new_value = round(decimal.Decimal(value), 2) or 0
+                elif core_methods.codes_values.get(key)[1] == 'bool':
+                    new_value = True if value == 'Y' else False
                 else:
-                    product_value[name_field] = ''
-                    setattr(prodtime, name_field, '' if type(
-                        getattr(prodtime, name_field)) == str else 0)
-                prodtime.save()
+                    new_value = str(value)
+                product_value[core_methods.codes_values.get(key)[0]] = new_value
+        product_value['tax_sum'] = round(product_value.get('quantity') * product_value.get('price_exclusive') *
+                                         product_value.get('tax') / 100, 2)
+        product_value['sum'] = round(product_value.get('quantity') * product_value.get('price_account'), 2)
+        product_value['portal'] = portal
+        logger.debug(f'Свойства товарной позиции для обновления или создания:{NEW_STR}{product_value=}')
 
+        prodtime, created = ProdTimeDeal.objects.update_or_create(product_id_b24=product_value.get('product_id_b24'),
+                                                                  defaults=product_value)
+        if created:
+            prodtime.name_for_print = prodtime.name
+        logger.info(f'Товарная позиция: {created=} {prodtime.id=}')
+
+        logger.info(f'Работа с прямыми затратами, нормочасами, материалами, сроком производства из каталога')
+        # Работа с прямыми затратами, нормочасами, материалами, сроком производства из каталога
+        core_methods.set_fields_from_catalog_b24(prodtime, settings_portal, product_in_catalog)
+
+        logger.info(f'Работа с прибылью')
         # Работа с прибылью
+        logger.info(f'Свойство is_change_income имеет значение {prodtime.is_change_income}')
         if (deal_bx.properties.get(settings_portal.deal_field_code_income_res) and not prodtime.income
                 and not prodtime.is_change_income):
             core_methods.calculation_income(prodtime, settings_portal)
 
-            # income_code = settings_portal.income_code
-            # if income_code not in product_in_catalog.properties or not product_in_catalog.properties.get(income_code):
-            #     product_value['income'] = ''
-            #     prodtime.income = 0
-            # else:
-            #     income_value_per_field = product_in_catalog.properties.get(income_code)
-            #     income_value_per = round(decimal.Decimal(income_value_per_field.get('value')), 2)
-            #     income_result = round(prodtime.sum * income_value_per / 100, 2)
-            #     prodtime.income = income_result
-        prodtime.save()
-
+        logger.info(f'Работа с эквивалентом')
         # Работа с эквивалентом
+        logger.info(f'Свойство is_change_equivalent имеет значение {prodtime.is_change_equivalent}')
         if prodtime.is_change_equivalent:
             product_value['equivalent'] = str(prodtime.equivalent).replace(',', '.')
         else:
@@ -252,27 +141,31 @@ def index(request):
             else:
                 product_value['equivalent'] = list(product_in_catalog.props.get(equivalent_code).values())[1]
                 prodtime.equivalent = decimal.Decimal(product_value['equivalent'])
+            logger.info(f'Для свойства equivalent установлено значение {prodtime.equivalent}')
             prodtime.save()
         if prodtime.equivalent and prodtime.quantity:
             prodtime.equivalent_count = (prodtime.equivalent * prodtime.quantity)
         else:
             prodtime.equivalent_count = 0
+        logger.info(f'Для свойства equivalent_count установлено значение {prodtime.equivalent_count}')
         prodtime.save()
-        products.append(product_value)
 
+    logger.info(f'Удаление лишних товарных позиций, которые удалены в сделке')
+    # Удаление лишних товарных позиций, которые удалены в сделке
     products_in_db = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     for product in products_in_db:
-        if not next((x for x in products if x['product_id_b24'] == product.product_id_b24), None):
+        if not next((x for x in deal_bx.products if int(x.get('ID')) == product.product_id_b24), None):
+            logger.info(f'{product.id} удален из БД, так как отсутствует в сделке')
             product.delete()
+
     # Подсчет суммарного эквивалента
     sum_equivalent = core_methods.count_sum_equivalent(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+    logger.info(f'Суммарный эквивалент равен {sum_equivalent=}')
 
-    # sum_equivalent = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).aggregate(Sum('equivalent_count'))
-    # sum_equivalent = sum_equivalent['equivalent_count__sum']
-
-    products = sorted(products, key=lambda prod: prod.get('sort'))
+    products_in_db.order_by('sort')
 
     max_prodtime = core_methods.count_set_max_prodtime(member_id=member_id, deal_id=deal_id)
+    logger.info(f'Максимальный срок производства равен {max_prodtime=}')
     # max_prodtime = deal_bx.properties.get(settings_portal.max_prodtime_code)
     # if max_prodtime:
     #     max_prodtime = datetime.datetime.strptime(max_prodtime.split('T')[0], '%Y-%m-%d').date()
@@ -281,7 +174,7 @@ def index(request):
 
     context = {
         'title': title,
-        'products': products,
+        'products': products_in_db,
         'sum_equivalent': sum_equivalent,
         'max_prodtime': max_prodtime,
         'member_id': member_id,
@@ -290,6 +183,7 @@ def index(request):
         'user': user_info
     }
     response = render(request, template, context)
+    logger.info(f'{SEPARATOR}')
     if auth_id:
         response.set_cookie(key='user_id', value=user_info.get('user_id'))
     return response
@@ -461,6 +355,21 @@ def save(request):
             prodtime.is_change_standard_hours = True
         if type_field == 'standard-hours-fact':
             prodtime.standard_hours_fact = value
+        if type_field == 'standard-hours2':
+            prodtime.standard_hours2 = value
+            prodtime.is_change_standard_hours2 = True
+        if type_field == 'standard-hours2-fact':
+            prodtime.standard_hours2_fact = value
+        if type_field == 'standard-hours3':
+            prodtime.standard_hours3 = value
+            prodtime.is_change_standard_hours3 = True
+        if type_field == 'standard-hours3-fact':
+            prodtime.standard_hours3_fact = value
+        if type_field == 'standard-hours4':
+            prodtime.standard_hours4 = value
+            prodtime.is_change_standard_hours4 = True
+        if type_field == 'standard-hours4-fact':
+            prodtime.standard_hours4_fact = value
         if type_field == 'materials':
             prodtime.materials = value
             prodtime.is_change_materials = True
@@ -575,8 +484,7 @@ def update_direct_costs(request):
     member_id = request.POST.get('member_id')
     deal_id = int(request.POST.get('deal_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
     products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     if not products:
@@ -653,18 +561,14 @@ def copy_products(request):
         numeric = Numeric.objects.get(portal=portal, year=current_year)
         last_number_in_year = numeric.last_number
     except ObjectDoesNotExist:
-        return JsonResponse({'result': 'error', 'info': f'Нумератор для года '
-                                                        f'{current_year} '
-                                                        f'отсутствует'})
+        return JsonResponse({'result': 'error', 'info': f'Нумератор для года {current_year} отсутствует'})
 
     try:
         year_code = AssociativeYearNumber.objects.get(
             portal=portal, year=int(datetime.date.today().year)).year_code
     except ObjectDoesNotExist:
-        return JsonResponse({'result': 'error',
-                             'info': f'Код для года '
-                                     f'{datetime.date.today().year} '
-                                     f'отсутствует в таблице соответствия'})
+        return JsonResponse({'result': 'error', 'info': f'Код для года {datetime.date.today().year} отсутствует в '
+                                                        f'таблице соответствия'})
 
     products = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id)
     result_text = ''
@@ -674,47 +578,36 @@ def copy_products(request):
     for product in products:
         try:
             product_row = ProductRowB24(portal, product.product_id_b24)
-            product_in_catalog = ProductInCatalogB24(
-                portal, product_row.id_in_catalog)
+            product_in_catalog = ProductInCatalogB24(portal, product_row.id_in_catalog)
         except RuntimeError as ex:
-            return JsonResponse({'result': 'error',
-                                 'info': str(ex.args[0]) + str(ex.args[1])})
+            return JsonResponse({'result': 'error', 'info': str(ex.args[0]) + str(ex.args[1])})
 
         name = product.name_for_print
         section_id = product_in_catalog.properties.get('iblockSectionId')
-        service = product_in_catalog.properties.get(
-            settings_portal.service_code)
+        service = product_in_catalog.properties.get(settings_portal.service_code)
 
         try:
             filter_for_list = {settings_portal.real_section_code: section_id}
-            elements_section_list = section_list.get_element_filter(
-                filter_for_list)
+            elements_section_list = section_list.get_element_filter(filter_for_list)
         except RuntimeError:
-            result_text += (f'Для товара {name} Невозможно получить секции '
-                            f'каталога для сопоставления\n')
+            result_text += f'Для товара {name} Невозможно получить секции каталога для сопоставления\n'
             continue
         if not elements_section_list:
             new_section_id = settings_portal.default_section_id
         else:
-            new_section_id = list(elements_section_list[0].get(
-                settings_portal.copy_section_code).values())[0]
+            new_section_id = list(elements_section_list[0].get(settings_portal.copy_section_code).values())[0]
 
-        is_auto_article = product_in_catalog.properties.get(
-            settings_portal.is_auto_article_code)
-        article = product_in_catalog.properties.get(
-            settings_portal.article_code)
-        section_number = product_in_catalog.properties.get(
-            settings_portal.section_number_code)
+        is_auto_article = product_in_catalog.properties.get(settings_portal.is_auto_article_code)
+        article = product_in_catalog.properties.get(settings_portal.article_code)
+        section_number = product_in_catalog.properties.get(settings_portal.section_number_code)
         if service == 'Y':
             new_name = product.name_for_print
         else:
             if is_auto_article == 'N':
-                result_text += (f'Для товара {name} Присваивать артикул '
-                                f'автоматически выключено\n')
+                result_text += f'Для товара {name} Присваивать артикул автоматически выключено\n'
                 continue
             if not section_number or 'value' not in section_number:
-                result_text += (f'Для товара {name} Номер раздела '
-                                f'не присвоен\n')
+                result_text += f'Для товара {name} Номер раздела не присвоен\n'
                 continue
             section_number = product_in_catalog.properties.get(
                 settings_portal.section_number_code).get('value')
@@ -723,8 +616,7 @@ def copy_products(request):
                 continue
 
             last_number_in_year += 1
-            article = 'ПТ{}.{}{:06}{}'.format(section_number, year_code,
-                                              last_number_in_year, '00')
+            article = 'ПТ{}.{}{:06}{}'.format(section_number, year_code, last_number_in_year, '00')
             new_name = f"{product.name_for_print} ( {article} )"
 
         name_fields = ['direct_costs', 'standard_hours', 'materials', 'prodtime_str']
@@ -764,15 +656,13 @@ def copy_products(request):
             del product_row.properties['id']
             product_row.update(product.product_id_b24)
         except RuntimeError as ex:
-            return JsonResponse({'result': 'error',
-                                 'info': f'{ex.args[0]} {ex.args[1]}'})
+            return JsonResponse({'result': 'error', 'info': f'{ex.args[0]} {ex.args[1]}'})
         if service == 'Y':
             result_text += f'Товар {name} скопирован как услуга\n'
         else:
             result_text += f'Для товара {name} артикул присвоен {article}\n'
 
-        prodtime = ProdTimeDeal.objects.get(portal=portal,
-                                            product_id_b24=product_row.id)
+        prodtime = ProdTimeDeal.objects.get(portal=portal, product_id_b24=product_row.id)
         prodtime.name_for_print = new_name
         prodtime.save()
 
@@ -789,8 +679,7 @@ def write_factory_number(request):
     member_id = request.POST.get('member_id')
     deal_id = request.POST.get('deal_id')
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
 
     try:
         deal = Deal.objects.get(deal_id=deal_id, portal=portal)
@@ -876,6 +765,15 @@ def write_factory_number(request):
                         standard_hours=product.standard_hours,
                         standard_hours_fact=product.standard_hours_fact,
                         is_change_standard_hours=product.is_change_standard_hours,
+                        standard_hours2=product.standard_hours2,
+                        standard_hours2_fact=product.standard_hours2_fact,
+                        is_change_standard_hours2=product.is_change_standard_hours2,
+                        standard_hours3=product.standard_hours3,
+                        standard_hours3_fact=product.standard_hours3_fact,
+                        is_change_standard_hours3=product.is_change_standard_hours3,
+                        standard_hours4=product.standard_hours4,
+                        standard_hours4_fact=product.standard_hours4_fact,
+                        is_change_standard_hours4=product.is_change_standard_hours4,
                         prodtime_str=product.prodtime_str,
                         is_change_prodtime_str=product.is_change_prodtime_str,
                         portal=portal,
@@ -915,8 +813,7 @@ def write_factory_number(request):
                 'assigned_by_id': deal_b24.properties.get('ASSIGNED_BY_ID'),
                 'parentId2': deal_id,
                 'company_id': deal_b24.company_id,
-                settings_portal.smart_factory_number_code: (
-                    product.factory_number),
+                settings_portal.smart_factory_number_code: product.factory_number,
             }
             result = smart_factory_number.create_element(fields)
             if 'item' not in result:
@@ -931,19 +828,12 @@ def write_factory_number(request):
                 'quantity': 1,
             }
             productrow.add(fields)
-            result_work += (f'\nДля товара {product.name} установлен заводской'
-                            f' номер {product.factory_number}')
+            result_work += f'\nДля товара {product.name} установлен заводской номер {product.factory_number}'
         except Exception as ex:
-            return JsonResponse({
-                'result': 'error',
-                'info': f'{ex.args[0]} для товара {product.name = }'
-            })
+            return JsonResponse({'result': 'error', 'info': f'{ex.args[0]} для товара {product.name = }'})
 
     if i == 0:
-        return JsonResponse({
-            'result': 'success',
-            'info': 'Нет товаров, в которых можно установить заводские номера'
-        })
+        return JsonResponse({'result': 'success', 'info': 'Нет товаров, в которых можно установить заводские номера'})
     else:
         return JsonResponse({'result': 'success', 'info': result_work})
 
@@ -988,13 +878,9 @@ def export_excel(request):
     except RuntimeError:
         company_name = 'Не удалось получить наименование компании'
 
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.'
-                     'spreadsheetml.sheet',
-    )
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',)
     response['Content-Disposition'] = 'attachment; filename={}.xlsx'.format(
-        deal.properties.get('UF_CRM_1661507258282') or 'report'
-    )
+        deal.properties.get('UF_CRM_1661507258282') or 'report')
 
     workbook = Workbook()
     worksheet = workbook.active
@@ -1043,8 +929,7 @@ def export_excel(request):
 
     for product in products:
         row_num += 1
-        prod_time = (product.prod_time.strftime('%d.%m.%Y') if
-                     product.prod_time else '')
+        prod_time = (product.prod_time.strftime('%d.%m.%Y') if product.prod_time else '')
 
         row = [
             product.name_for_print,
@@ -1082,15 +967,6 @@ class ProdTimeDealViewSet(viewsets.ReadOnlyModelViewSet):
         'updated': ['gte', 'lte', 'exact', 'gt', 'lt'],
         'portal': ['exact'],
     }
-
-    # def get_queryset(self):
-    #     pk = self.kwargs.get("pk") if 'pk' in self.kwargs else None
-    #     queryset = ProdTimeDeal.objects.all()
-    #
-    #     if pk:
-    #         return ProdTimeDeal.objects.filter(pk=pk)
-    #
-    #     return queryset
 
 
 class ObjB24Old:

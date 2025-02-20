@@ -51,10 +51,9 @@ class SettingsArticlesPortalForm(forms.ModelForm):
 
     class Meta:
         model = SettingsPortal
-        fields = ('is_auto_article_code', 'article_code',
-                  'section_number_code', 'service_code', 'prodtime_str_code',
-                  'direct_costs_code', 'standard_hours_code',
-                  'materials_code', 'income_percent', 'deal_field_code_income_res')
+        fields = ('is_auto_article_code', 'article_code', 'section_number_code', 'service_code', 'prodtime_str_code',
+                  'direct_costs_code', 'standard_hours_code',  'standard_hours2_code', 'standard_hours3_code',
+                  'standard_hours4_code', 'materials_code', 'income_percent', 'deal_field_code_income_res')
 
 
 class SettingsGeneralPortalForm(forms.ModelForm):

@@ -14,7 +14,7 @@ class ProdTimeDeal(ProdTime):
         help_text='Прямые затраты из свойства товара в каталоге товаров '
                   'Битрикс24',
         max_digits=12,
-        decimal_places=2,
+        decimal_places=3,
         null=True,
         blank=True,
     )
@@ -26,35 +26,41 @@ class ProdTimeDeal(ProdTime):
         verbose_name='Прямые затраты Факт',
         help_text='Фактические Прямые затраты. Указываются в приложении',
         max_digits=12,
-        decimal_places=2,
+        decimal_places=3,
         null=True,
         blank=True,
     )
-    standard_hours = models.DecimalField(
-        verbose_name='Нормочасы',
-        help_text='Нормочасы из свойства товара в каталоге товаров Битрикс24',
-        max_digits=8,
-        decimal_places=2,
-        null=True,
-        blank=True,
-    )
-    is_change_standard_hours = models.BooleanField(
-        verbose_name='Ручное изменение нормочасов',
-        default=False
-    )
-    standard_hours_fact = models.DecimalField(
-        verbose_name='Нормочасы Факт',
-        help_text='Фактические Нормочасы. Указываются в приложении',
-        max_digits=8,
-        decimal_places=2,
-        null=True,
-        blank=True,
-    )
+    standard_hours = models.DecimalField('НЧ Уч.1', help_text='НЧ Уч.1 из свойства товара в каталоге товаров Битрикс24',
+                                         max_digits=12, decimal_places=3, null=True, blank=True, )
+    is_change_standard_hours = models.BooleanField('Ручное изменение НЧ Уч.1', default=False)
+    standard_hours_fact = models.DecimalField('НЧ Уч.1 Факт', help_text='Фактические НЧ Уч.1. Указываются в приложении',
+                                              max_digits=12, decimal_places=3, null=True, blank=True, )
+    standard_hours2 = models.DecimalField('НЧ Уч.2',
+                                          help_text='НЧ Уч.2 из свойства товара в каталоге товаров Битрикс24',
+                                          max_digits=12, decimal_places=3, null=True, blank=True, )
+    is_change_standard_hours2 = models.BooleanField('Ручное изменение НЧ Уч.2', default=False)
+    standard_hours2_fact = models.DecimalField('НЧ Уч.2 Факт',
+                                               help_text='Фактические НЧ Уч.2. Указываются в приложении',
+                                               max_digits=12, decimal_places=3, null=True, blank=True, )
+    standard_hours3 = models.DecimalField('НЧ Уч.3',
+                                          help_text='НЧ Уч.3 из свойства товара в каталоге товаров Битрикс24',
+                                          max_digits=12, decimal_places=3, null=True, blank=True, )
+    is_change_standard_hours3 = models.BooleanField('Ручное изменение НЧ Уч.3', default=False)
+    standard_hours3_fact = models.DecimalField('НЧ Уч.3 Факт',
+                                               help_text='Фактические НЧ Уч.3. Указываются в приложении',
+                                               max_digits=12, decimal_places=3, null=True, blank=True, )
+    standard_hours4 = models.DecimalField('НЧ Уч.4',
+                                          help_text='НЧ Уч.4 из свойства товара в каталоге товаров Битрикс24',
+                                          max_digits=12, decimal_places=3, null=True, blank=True, )
+    is_change_standard_hours4 = models.BooleanField('Ручное изменение НЧ Уч.4', default=False)
+    standard_hours4_fact = models.DecimalField('НЧ Уч.4 Факт',
+                                               help_text='Фактические НЧ Уч.4. Указываются в приложении',
+                                               max_digits=12, decimal_places=3, null=True, blank=True, )
     materials = models.DecimalField(
         verbose_name='Материалы',
         help_text='Материалы из свойства товара в каталоге товаров Битрикс24',
         max_digits=12,
-        decimal_places=2,
+        decimal_places=3,
         null=True,
         blank=True,
     )
@@ -66,7 +72,7 @@ class ProdTimeDeal(ProdTime):
         verbose_name='Материалы Факт',
         help_text='Фактические Материалы. Указываются в приложении',
         max_digits=12,
-        decimal_places=2,
+        decimal_places=3,
         null=True,
         blank=True,
     )

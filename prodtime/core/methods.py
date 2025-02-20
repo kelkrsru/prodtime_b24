@@ -392,7 +392,8 @@ def count_set_max_prodtime(member_id, deal_id):
 
 def set_fields_from_catalog_b24(product, settings_portal, product_in_catalog):
     """Метод для установки значений полей, значения которых берутся из каталога товаров Битрикс24"""
-    name_fields = ['direct_costs', 'standard_hours', 'materials', 'prodtime_str']
+    name_fields = ['direct_costs', 'standard_hours', 'standard_hours2', 'standard_hours3', 'standard_hours4',
+                   'materials', 'prodtime_str']
     for name_field in name_fields:
         if getattr(product, 'is_change_' + name_field):
             logger.info(f'Свойство is_change_{name_field}=True. Пропускаем.')

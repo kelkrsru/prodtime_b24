@@ -24,3 +24,7 @@ table.report-deals {
   table-layout: fixed;
   word-wrap:break-word;
 }
+
+#main-table .form-control {
+  padding: .375rem 0;
+}

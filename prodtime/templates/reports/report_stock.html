@@ -93,7 +93,9 @@
         </thead>
         <tbody>
           {% for product in store_products %}
-            <tr class="{% if product.color %}{{ settings_for_report_stock.background_row }} text-white{% elif product.color_max %}{{ settings_for_report_stock.background_row_max }} text-white{% endif %}">
+            <tr class="{% if product.color %}{{ settings_for_report_stock.background_row }} text-white
+                       {% elif product.color_max %}{{ settings_for_report_stock.background_row_max }} text-white
+                       {% elif product.color_average %}{{ settings_for_report_stock.background_row_average }} text-white{% endif %}">
             <td><a href="https://{{ portal.name }}/crm/catalog/15/product/{{ product.productId }}/" target="_blank">{{ product.name }}</a></td>
             <td>{{ product.amount }}</td>
             <td>{{ product.quantityReserved }}</td>

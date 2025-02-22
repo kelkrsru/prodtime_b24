@@ -61,14 +61,26 @@ class ReportStock(ReportProdtime):
             remain_product = remains_products.get(product_in_catalog_id)
             remain_product['no_available'] = "-"
             remain_product['flag_task'] = False
+            remain_product['flag_task_average'] = False
             remain_product['color'] = False
 
+            # Проверяем есть ли задача на минимальный остаток
             if product_in_catalog.get(self.settings_for_report_stock.task_id_code):
-                remain_product['task_id'] = product_in_catalog.get(self.settings_for_report_stock.task_id_code).get('value')
+                remain_product['task_id'] = product_in_catalog.get(
+                    self.settings_for_report_stock.task_id_code).get('value')
             if product_in_catalog.get(self.settings_for_report_stock.task_responsible_code):
-                remain_product['task_responsible'] = product_in_catalog.get(self.settings_for_report_stock.task_responsible_code).get('value')
+                remain_product['task_responsible'] = product_in_catalog.get(
+                    self.settings_for_report_stock.task_responsible_code).get('value')
+            # Проверяем есть ли задача на средний остаток
+            if product_in_catalog.get(self.settings_for_report_stock.task_average_id_code):
+                remain_product['task_average_id'] = product_in_catalog.get(
+                    self.settings_for_report_stock.task_average_id_code).get('value')
+            if product_in_catalog.get(self.settings_for_report_stock.task_average_responsible_code):
+                remain_product['task_average_responsible'] = product_in_catalog.get(
+                    self.settings_for_report_stock.task_average_responsible_code).get('value')
 
             remain_product['name'] = product_in_catalog.get('name')
+            # Проверка на минимальный остаток
             if product_in_catalog.get(self.min_stock_code):
                 remain_product['min_stock'] = int(product_in_catalog.get(self.min_stock_code).get('value'))
                 no_available = remain_product.get('min_stock') - remain_product.get('quantityAvailable')
@@ -78,6 +90,7 @@ class ReportStock(ReportProdtime):
                     remain_product['color'] = True
             else:
                 remains_products[product_in_catalog.get('id')]['min_stock'] = 'Не указан'
+            # Проверка на максимальный остаток
             if product_in_catalog.get(self.max_stock_code):
                 remain_product['max_stock'] = int(product_in_catalog.get(self.max_stock_code).get('value'))
                 no_available = remain_product.get('quantityAvailable') - remain_product.get('max_stock')
@@ -87,4 +100,11 @@ class ReportStock(ReportProdtime):
                     remain_product['color_max'] = True
             else:
                 remains_products[product_in_catalog.get('id')]['max_stock'] = 'Не указан'
+            # Проверка на средний остаток
+            if type(remain_product.get('min_stock')) == int and type(remain_product.get('max_stock')) == int:
+                average_value = (remain_product.get('min_stock') + remain_product.get('max_stock'))/2
+                if average_value > remain_product.get('quantityAvailable') > remain_product.get('min_stock'):
+                    remain_product['no_available'] = f''
+                    remain_product['flag_task_average'] = True
+                    remain_product['color_average'] = True
         return remains_products.values()

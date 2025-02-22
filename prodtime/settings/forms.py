@@ -10,7 +10,11 @@ class SettingsForReportStockForm(forms.ModelForm):
         model = SettingsForReportStock
         fields = ('stock_id', 'min_stock_code', 'max_stock_code', 'create_task', 'name_task', 'text_task',
                   'task_deadline', 'task_project_id', 'task_responsible_code', 'task_responsible_default_id',
-                  'task_responsible_default_always', 'task_id_code', 'background_row', 'background_row_max')
+                  'task_responsible_default_always', 'task_id_code', 'create_task_average', 'name_task_average',
+                  'text_task_average', 'task_average_deadline', 'task_average_project_id',
+                  'task_average_responsible_code', 'task_average_responsible_default_id',
+                  'task_average_responsible_default_always', 'task_average_id_code', 'background_row',
+                  'background_row_max', 'background_row_average')
 
 
 class SettingsDealPortalForm(forms.ModelForm):

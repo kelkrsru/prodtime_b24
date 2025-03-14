@@ -268,17 +268,29 @@ class SettingsPortal(models.Model):
         default='property90',
         max_length=30,
     )
-    standard_hours_code = models.CharField(
-        verbose_name='Код свойства Нормочасы',
-        help_text='Код свойства Нормочасы в каталоге товаров. Код, '
-                  'который отдает метод "crm.product.get"',
-        default='property91',
-        max_length=30,
-    )
+    standard_hours_code = models.CharField('Код свойства НЧ Уч.1',
+                                           help_text='Код свойства НЧ Уч.1 в каталоге товаров. '
+                                                     'Код, который отдает метод "crm.product.get"',
+                                           default='property00', max_length=30, )
+    standard_hours2_code = models.CharField('Код свойства НЧ Уч.2',
+                                            help_text='Код свойства НЧ Уч.2 в каталоге товаров. '
+                                                      'Код, который отдает метод "crm.product.get"',
+                                            default='property00', max_length=30, )
+    standard_hours3_code = models.CharField('Код свойства НЧ Уч.3',
+                                            help_text='Код свойства НЧ Уч.3 в каталоге товаров. '
+                                                      'Код, который отдает метод "crm.product.get"',
+                                            default='property00', max_length=30, )
+    standard_hours4_code = models.CharField('Код свойства НЧ Уч.4',
+                                            help_text='Код свойства НЧ Уч.4 в каталоге товаров. '
+                                                      'Код, который отдает метод "crm.product.get"',
+                                            default='property00', max_length=30, )
+    plot_number_code = models.CharField('Код свойства Номер участка',
+                                        help_text='Код свойства Номер участка в каталоге товаров. '
+                                                  'Код, который отдает метод "crm.product.get"',
+                                        default='property560', max_length=30, )
     materials_code = models.CharField(
         verbose_name='Код свойства Материалы',
-        help_text='Код свойства Материалы в каталоге товаров. Код, '
-                  'который отдает метод "crm.product.get"',
+        help_text='Код свойства Материалы в каталоге товаров. Код, который отдает метод "crm.product.get"',
         default='property92',
         max_length=30,
     )
@@ -339,6 +351,13 @@ class SettingsForReportStock(models.Model):
         SUCCESS = 'bg-success', 'Зеленый'
         DANGER = 'bg-danger', 'Красный'
         DARK = 'bg-dark', 'Черный'
+        SUNSET = 'bg-sunset', 'Цвет заката'
+        LIGHT_PURPLE = 'bg-light-purple', 'Светлый розово-лиловый'
+        MINT_CREAM = 'bg-mint-cream', 'Мятно-кремовый'
+        CREAM = 'bg-cream', 'Кремовый'
+        PASTEL_YELLOW = 'bg-pastel-yellow', 'Пастельно-желтый'
+        PASTEL_GREEN = 'bg-pastel-green', 'Пастельно-зеленый'
+        PASTEL_PINK = 'bg-pastel-pink', 'Пастельно-розовый'
 
     portal = models.OneToOneField(
         Portals,
@@ -366,23 +385,23 @@ class SettingsForReportStock(models.Model):
         max_length=30,
     )
     create_task = models.BooleanField(
-        verbose_name='Создавать задачу',
+        'Создавать задачу',
         help_text='Создавать задачу при достижении минимального остатка',
         default=True,
     )
     name_task = models.CharField(
-        verbose_name='Наименование задачи',
+        'Наименование задачи',
         help_text='Наименование создаваемой задачи при достижении минимального остатка',
         max_length=255,
         default='Новая задача',
     )
     text_task = models.TextField(
-        verbose_name='Текст задачи',
+        'Текст задачи',
         help_text='Текст создаваемой задачи при достижении минимального остатка',
         blank=True,
     )
     task_deadline = models.IntegerField(
-        verbose_name='Крайний срок задачи',
+        'Крайний срок задачи',
         help_text='Количество дней от текущей даты для крайнего срока задачи',
         default=3,
     )
@@ -392,7 +411,7 @@ class SettingsForReportStock(models.Model):
         default=0
     )
     task_responsible_code = models.CharField(
-        verbose_name='Код свойства ответственного',
+        'Код свойства ответственного',
         help_text='Код свойства товара в каталоге товаров, из которого берется ID ответственного за создаваемую задачу',
         default='property00',
         max_length=30,
@@ -409,8 +428,60 @@ class SettingsForReportStock(models.Model):
         default=False,
     )
     task_id_code = models.CharField(
-        verbose_name='Код свойства ID задачи',
+        'Код свойства ID задачи',
         help_text='Код свойства ID задачи в каталоге товаров, в которое записывается ID созданной задачи',
+        default='property00',
+        max_length=30,
+    )
+    create_task_average = models.BooleanField(
+        'Создавать задачу при среднем значении',
+        help_text='Создавать задачу при достижении среднего значения',
+        default=True,
+    )
+    name_task_average = models.CharField(
+        'Наименование задачи при среднем значении',
+        help_text='Наименование создаваемой задачи при достижении среднего значения',
+        max_length=255,
+        default='Новая задача',
+    )
+    text_task_average = models.TextField(
+        'Текст задачи при среднем значении',
+        help_text='Текст создаваемой задачи при достижении среднего значения',
+        blank=True,
+    )
+    task_average_deadline = models.IntegerField(
+        'Крайний срок задачи при среднем значении',
+        help_text='Количество дней от текущей даты для крайнего срока задачи при достижении среднего значения',
+        default=3,
+    )
+    task_average_project_id = models.PositiveSmallIntegerField(
+        'ID проекта задачи при среднем значении',
+        help_text='ID проекта битрикс24, к которому будет относиться задача при достижении среднего значения',
+        default=0
+    )
+    task_average_responsible_code = models.CharField(
+        'Код свойства ответственного за задачу при среднем значении',
+        help_text='Код свойства товара в каталоге товаров, из которого берется ID ответственного за создаваемую задачу'
+                  'при достижении среднего значения',
+        default='property00',
+        max_length=30,
+    )
+    task_average_responsible_default_id = models.PositiveSmallIntegerField(
+        'ID ответственного сотрудника за задачу при среднем значении',
+        help_text='ID ответственного за задачу при достижении среднего значения сотрудника по умолчанию, если поле '
+                  'в каталоге товаров не заполнено',
+        default=1,
+    )
+    task_average_responsible_default_always = models.BooleanField(
+        'Всегда ответственный по умолчанию за задачу при среднем значении',
+        help_text='Всегда подставлять ответственным за задачу при достижении среднего значения по умолчанию, не смотря '
+                  'на заполненность поля в каталоге товаров',
+        default=False,
+    )
+    task_average_id_code = models.CharField(
+        'Код свойства ID задачи при среднем значении',
+        help_text='Код свойства ID задачи в каталоге товаров, в которое записывается ID созданной задачи при достижении'
+                  ' среднего значения',
         default='property00',
         max_length=30,
     )
@@ -427,6 +498,13 @@ class SettingsForReportStock(models.Model):
         max_length=30,
         choices=ColorBackground.choices,
         default=ColorBackground.SUCCESS
+    )
+    background_row_average = models.CharField(
+        'Цвет выделения строк Average',
+        help_text='Цвет выделения строк, у которых значение больше минимального остатка, но меньше среднего',
+        max_length=30,
+        choices=ColorBackground.choices,
+        default=ColorBackground.SECONDARY
     )
 
     class Meta:

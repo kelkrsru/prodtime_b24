@@ -10,7 +10,11 @@ class SettingsForReportStockForm(forms.ModelForm):
         model = SettingsForReportStock
         fields = ('stock_id', 'min_stock_code', 'max_stock_code', 'create_task', 'name_task', 'text_task',
                   'task_deadline', 'task_project_id', 'task_responsible_code', 'task_responsible_default_id',
-                  'task_responsible_default_always', 'task_id_code', 'background_row', 'background_row_max')
+                  'task_responsible_default_always', 'task_id_code', 'create_task_average', 'name_task_average',
+                  'text_task_average', 'task_average_deadline', 'task_average_project_id',
+                  'task_average_responsible_code', 'task_average_responsible_default_id',
+                  'task_average_responsible_default_always', 'task_average_id_code', 'background_row',
+                  'background_row_max', 'background_row_average')
 
 
 class SettingsDealPortalForm(forms.ModelForm):
@@ -51,10 +55,10 @@ class SettingsArticlesPortalForm(forms.ModelForm):
 
     class Meta:
         model = SettingsPortal
-        fields = ('is_auto_article_code', 'article_code',
-                  'section_number_code', 'service_code', 'prodtime_str_code',
-                  'direct_costs_code', 'standard_hours_code',
-                  'materials_code', 'income_percent', 'deal_field_code_income_res')
+        fields = ('is_auto_article_code', 'article_code', 'section_number_code', 'service_code', 'prodtime_str_code',
+                  'direct_costs_code', 'standard_hours_code',  'standard_hours2_code', 'standard_hours3_code',
+                  'standard_hours4_code', 'plot_number_code', 'materials_code', 'income_percent',
+                  'deal_field_code_income_res')
 
 
 class SettingsGeneralPortalForm(forms.ModelForm):

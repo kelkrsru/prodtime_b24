@@ -24,3 +24,42 @@ table.report-deals {
   table-layout: fixed;
   word-wrap:break-word;
 }
+
+#main-table .form-control {
+  padding: .375rem 0;
+}
+
+.bg-sunset {
+  background-color: #FAD6A5 !important;
+  color: black !important;
+}
+
+.bg-light-purple {
+  background-color: #EA899A !important;
+  color: black !important;
+}
+
+.bg-mint-cream {
+  background-color: #F5FFFA !important;
+  color: black !important;
+}
+
+.bg-cream {
+  background-color: #FDF4E3 !important;
+  color: black !important;
+}
+
+.bg-pastel-yellow {
+  background-color: #EFA94A !important;
+  color: black !important;
+}
+
+.bg-pastel-green {
+  background-color: #77DD77 !important;
+  color: black !important;
+}
+
+.bg-pastel-pink {
+  background-color: #E4717A !important;
+  color: black !important;
+}

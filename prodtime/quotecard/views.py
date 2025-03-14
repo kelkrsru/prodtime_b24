@@ -437,12 +437,12 @@ def create_articles(request):
             settings_portal.service_code] = {}
         if service == 'Y':
             product_in_catalog.properties[
-                settings_portal.is_auto_article_code]['value'] = 'N'
+                settings_portal.is_auto_article_code]['valueEnum'] = 'Нет'
             product_in_catalog.properties[
                 settings_portal.service_code]['value'] = 'Y'
         else:
             product_in_catalog.properties[
-                settings_portal.is_auto_article_code]['value'] = 'Y'
+                settings_portal.is_auto_article_code]['valueEnum'] = 'Да'
             product_in_catalog.properties[
                 settings_portal.service_code]['value'] = 'N'
             product_in_catalog.properties[

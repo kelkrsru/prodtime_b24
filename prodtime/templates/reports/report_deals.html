@@ -83,11 +83,10 @@
         <thead>
           <tr>
             <th>Товар</th>
+            {% if show_parent_dir == 'on' %}<th>Номер участка</th>{% endif %}
             <th>Макс. срок производства</th>
             <th>Заводской номер</th>
-            {% if show_parent_dir == 'on' %}
-              <th>Папка товара по каталогу</th>
-            {% endif %}
+            {% if show_parent_dir == 'on' %}<th>Папка товара по каталогу</th>{% endif %}
             <th>Id товара каталога</th>
             <th>Кол-во</th>
             <th>Цена розница, руб. Без НДС  (без скидки)</th>
@@ -96,9 +95,18 @@
             <th>Прямые затраты на единицу без НДС План</th>
             <th>Прямые затраты на единицу без НДС Факт</th>
             <th>Отклонение прямых затрат, %</th>
-            <th>Нормочасы на единицу План</th>
-            <th>Нормочасы на единицу Факт</th>
-            <th>Отклонение нормочасы, %</th>
+            <th>НЧ Уч.1 на единицу План</th>
+            <th>НЧ Уч.1 на единицу Факт</th>
+            <th>Отклонение НЧ Уч.1, %</th>
+            <th>НЧ Уч.2 на единицу План</th>
+            <th>НЧ Уч.2 на единицу Факт</th>
+            <th>Отклонение НЧ Уч.2, %</th>
+            <th>НЧ Уч.3 на единицу План</th>
+            <th>НЧ Уч.3 на единицу Факт</th>
+            <th>Отклонение НЧ Уч.3, %</th>
+            <th>НЧ Уч.4 на единицу План</th>
+            <th>НЧ Уч.4 на единицу Факт</th>
+            <th>Отклонение НЧ Уч.4, %</th>
             <th>Материалы на единицу без НДС План</th>
             <th>Материалы на единицу без НДС Факт</th>
             <th>Отклонение материалы, %</th>
@@ -117,11 +125,10 @@
           {% for product in products %}
             <tr>
             <td>{{ product.productName }}</td>
+            {% if show_parent_dir == 'on' %}<td>{{ product.plot_number }}</td>{% endif %}
             <td>{{ product.max_prodtime }}</td>
             <td>{{ product.factory_number }}</td>
-            {% if show_parent_dir == 'on' %}
-              <td>{{ product.section_name }}</td>
-            {% endif %}
+            {% if show_parent_dir == 'on' %}<td>{{ product.section_name }}</td>{% endif %}
             <td>{{ product.productId }}</td>
             <td>{{ product.quantity }}</td>
             <td>{{ product.priceNetto }}</td>
@@ -133,6 +140,15 @@
             <td>{{ product.standard_hours }}</td>
             <td>{{ product.standard_hours_fact }}</td>
             <td>{{ product.standard_hours_div }}</td>
+            <td>{{ product.standard_hours2 }}</td>
+            <td>{{ product.standard_hours2_fact }}</td>
+            <td>{{ product.standard_hours2_div }}</td>
+            <td>{{ product.standard_hours3 }}</td>
+            <td>{{ product.standard_hours3_fact }}</td>
+            <td>{{ product.standard_hours3_div }}</td>
+            <td>{{ product.standard_hours4 }}</td>
+            <td>{{ product.standard_hours4_fact }}</td>
+            <td>{{ product.standard_hours4_div }}</td>
             <td>{{ product.materials }}</td>
             <td>{{ product.materials_fact }}</td>
             <td>{{ product.materials_div }}</td>
@@ -151,10 +167,9 @@
         <tfoot>
           <tr>
             <th></th>
+            {% if show_parent_dir == 'on' %}<th></th>{% endif %}
             <th></th>
-            {% if show_parent_dir == 'on' %}
-              <th></th>
-            {% endif %}
+            {% if show_parent_dir == 'on' %}<th></th>{% endif %}
             <th>Итого:</th>
             <th></th>
             <th>{{ result.res_quantity }}</th>
@@ -167,6 +182,15 @@
             <th>{{ result.res_standard_hours }}</th>
             <th>{{ result.res_standard_hours_fact }}</th>
             <th>{{ result.res_standard_hours_div }}</th>
+            <th>{{ result.res_standard_hours2 }}</th>
+            <th>{{ result.res_standard_hours2_fact }}</th>
+            <th>{{ result.res_standard_hours2_div }}</th>
+            <th>{{ result.res_standard_hours3 }}</th>
+            <th>{{ result.res_standard_hours3_fact }}</th>
+            <th>{{ result.res_standard_hours3_div }}</th>
+            <th>{{ result.res_standard_hours4 }}</th>
+            <th>{{ result.res_standard_hours4_fact }}</th>
+            <th>{{ result.res_standard_hours4_div }}</th>
             <th>{{ result.res_materials }}</th>
             <th>{{ result.res_materials_fact }}</th>
             <th>{{ result.res_materials_div }}</th>

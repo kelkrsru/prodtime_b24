@@ -124,3 +124,30 @@ class ReportProductionForm(forms.Form):
         if end_date < start_date:
             raise forms.ValidationError(
                 "Конечная дата не может быть меньше начальной даты.")
+
+
+class ReportStockForm(forms.Form):
+    """Форма для применения фильтра отчета по остаткам."""
+
+    SHOW_NULL_MIN_MAX_STOCK_CHOICES = [
+        ('Y', 'Показывать'),
+        ('N', 'Не показывать'),
+    ]
+
+    SHOW_ARTICLE_CHOICES = [
+        ('ANY', 'Не выбрано'),
+        ('Y', 'Да'),
+        ('N', 'Нет'),
+    ]
+
+    show_null_min_max_stock = forms.ChoiceField(
+        label='Не указаны Макс и Мин остатки',
+        choices=SHOW_NULL_MIN_MAX_STOCK_CHOICES,
+        required=False,
+    )
+
+    show_article = forms.ChoiceField(
+        label='Присваивать артикул автоматом',
+        choices=SHOW_ARTICLE_CHOICES,
+        required=False,
+    )

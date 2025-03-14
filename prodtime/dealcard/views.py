@@ -641,10 +641,10 @@ def copy_products(request):
         product_in_catalog.properties[settings_portal.is_auto_article_code] = {}
         product_in_catalog.properties[settings_portal.service_code] = {}
         if service == 'Y':
-            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'N'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Нет'
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'Y'
         else:
-            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'Y'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Да'
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'N'
             product_in_catalog.properties[settings_portal.article_code] = article
         del product_in_catalog.properties['id']

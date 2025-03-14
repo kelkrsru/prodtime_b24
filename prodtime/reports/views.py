@@ -6,15 +6,14 @@ from django.shortcuts import render, get_object_or_404
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 
-from core.bitrix24.bitrix24 import (create_portal, ListEntitiesB24,
-                                    ListProductRowsB24, ProductInCatalogB24,
-                                    CatalogSectionB24, BatchB24)
+from core.bitrix24.bitrix24 import (create_portal, ListEntitiesB24, ListProductRowsB24, ProductInCatalogB24,
+                                    CatalogSectionB24)
 from core.methods import get_current_user, check_request
 from core.models import Portals
 from dealcard.models import ProdTimeDeal, Deal
 from reports.ReportProdtime import ReportStock
-from reports.forms import ReportDealsForm, ReportProductionForm
-from settings.models import SettingsPortal, SettingsForReportStock
+from reports.forms import ReportDealsForm, ReportProductionForm, ReportStockForm
+from settings.models import SettingsPortal
 
 
 @xframe_options_exempt
@@ -29,16 +28,15 @@ def report_deals(request):
         производства для отчета."""
         str_blank = 0
 
-        direct_costs = (prodtime_db.direct_costs if prodtime_db.direct_costs
-                        else str_blank)
-        direct_costs_fact = (prodtime_db.direct_costs_fact if
-                             prodtime_db.direct_costs_fact else 0)
+        direct_costs = (prodtime_db.direct_costs if prodtime_db.direct_costs else str_blank)
+        direct_costs_fact = (prodtime_db.direct_costs_fact if prodtime_db.direct_costs_fact else 0)
         if type(direct_costs) == decimal.Decimal:
             direct_costs_div = round((direct_costs_fact - direct_costs) / direct_costs * 100, 2)
         else:
             direct_costs_div = str_blank
         if direct_costs_fact:
-            direct_costs_sum = round((direct_costs_fact + direct_costs_fact * prodtime.tax / 100) * prodtime.quantity, 2)
+            direct_costs_sum = round((direct_costs_fact + direct_costs_fact * prodtime.tax / 100) *
+                                     prodtime.quantity, 2)
         elif direct_costs:
             direct_costs_sum = round((direct_costs + direct_costs * prodtime.tax / 100) * prodtime.quantity, 2)
         else:
@@ -50,6 +48,27 @@ def report_deals(request):
             standard_hours_div = round((standard_hours_fact - standard_hours) / standard_hours * 100, 2)
         else:
             standard_hours_div = str_blank
+
+        standard_hours2 = prodtime_db.standard_hours2 if prodtime_db.standard_hours2 else str_blank
+        standard_hours2_fact = prodtime_db.standard_hours2 if prodtime_db.standard_hours2_fact else 0
+        if type(standard_hours2) == decimal.Decimal:
+            standard_hours2_div = round((standard_hours2_fact - standard_hours2) / standard_hours2 * 100, 2)
+        else:
+            standard_hours2_div = str_blank
+
+        standard_hours3 = prodtime_db.standard_hours3 if prodtime_db.standard_hours3 else str_blank
+        standard_hours3_fact = prodtime_db.standard_hours3 if prodtime_db.standard_hours3_fact else 0
+        if type(standard_hours3) == decimal.Decimal:
+            standard_hours3_div = round((standard_hours3_fact - standard_hours3) / standard_hours3 * 100, 2)
+        else:
+            standard_hours3_div = str_blank
+
+        standard_hours4 = prodtime_db.standard_hours4 if prodtime_db.standard_hours4 else str_blank
+        standard_hours4_fact = prodtime_db.standard_hours4 if prodtime_db.standard_hours4_fact else 0
+        if type(standard_hours4) == decimal.Decimal:
+            standard_hours4_div = round((standard_hours4_fact - standard_hours4) / standard_hours4 * 100, 2)
+        else:
+            standard_hours4_div = str_blank
 
         materials = prodtime_db.materials if prodtime_db.materials else str_blank
         materials_fact = prodtime_db.materials if prodtime_db.materials_fact else 0
@@ -86,6 +105,15 @@ def report_deals(request):
             'standard_hours': standard_hours,
             'standard_hours_fact': standard_hours_fact,
             'standard_hours_div': standard_hours_div,
+            'standard_hours2': standard_hours2,
+            'standard_hours2_fact': standard_hours2_fact,
+            'standard_hours2_div': standard_hours2_div,
+            'standard_hours3': standard_hours3,
+            'standard_hours3_fact': standard_hours3_fact,
+            'standard_hours3_div': standard_hours3_div,
+            'standard_hours4': standard_hours4,
+            'standard_hours4_fact': standard_hours4_fact,
+            'standard_hours4_div': standard_hours4_div,
             'materials': materials,
             'materials_fact': materials_fact,
             'materials_div': materials_div,
@@ -105,8 +133,7 @@ def report_deals(request):
 
         def _sum(product_list, column_name):
             """Сумма по столбцу."""
-            values = [item.get(column_name) for item in product_list
-                      if type(item.get(column_name)) == decimal.Decimal]
+            values = [item.get(column_name) for item in product_list if type(item.get(column_name)) == decimal.Decimal]
             if values:
                 return round(sum(values), 2)
             else:
@@ -114,9 +141,8 @@ def report_deals(request):
 
         def _sum_count(product_list, column_name):
             """Сумма по столбцу c учетом количества."""
-            values = [item.get(column_name) * item.get('quantity') for item in
-                      product_list if type(item.get(column_name)) ==
-                      decimal.Decimal]
+            values = [item.get(column_name) * item.get('quantity') for item in product_list
+                      if type(item.get(column_name)) == decimal.Decimal]
             if values:
                 return round(sum(values), 2)
             else:
@@ -124,8 +150,7 @@ def report_deals(request):
 
         def _avg(product_list, column_name):
             """Среднее по столбцу."""
-            values = [item.get(column_name) for item in product_list
-                      if type(item.get(column_name)) == decimal.Decimal]
+            values = [item.get(column_name) for item in product_list if type(item.get(column_name)) == decimal.Decimal]
             if values:
                 return round(sum(values) / len(values), 2)
             else:
@@ -142,13 +167,19 @@ def report_deals(request):
         res_quantity = sum([item.get('quantity') for item in products_list])
         res_direct_costs = _sum_count(products_list, 'direct_costs')
         res_direct_costs_fact = _sum_count(products_list, 'direct_costs_fact')
-        res_direct_costs_div = _custom_avg(res_direct_costs,
-                                           res_direct_costs_fact)
+        res_direct_costs_div = _custom_avg(res_direct_costs, res_direct_costs_fact)
         res_standard_hours = _sum_count(products_list, 'standard_hours')
-        res_standard_hours_fact = _sum_count(products_list,
-                                             'standard_hours_fact')
-        res_standard_hours_div = _custom_avg(res_standard_hours,
-                                             res_standard_hours_fact)
+        res_standard_hours_fact = _sum_count(products_list, 'standard_hours_fact')
+        res_standard_hours_div = _custom_avg(res_standard_hours, res_standard_hours_fact)
+        res_standard_hours2 = _sum_count(products_list, 'standard_hours2')
+        res_standard_hours2_fact = _sum_count(products_list, 'standard_hours2_fact')
+        res_standard_hours2_div = _custom_avg(res_standard_hours2, res_standard_hours2_fact)
+        res_standard_hours3 = _sum_count(products_list, 'standard_hours3')
+        res_standard_hours3_fact = _sum_count(products_list, 'standard_hours3_fact')
+        res_standard_hours3_div = _custom_avg(res_standard_hours3, res_standard_hours3_fact)
+        res_standard_hours4 = _sum_count(products_list, 'standard_hours4')
+        res_standard_hours4_fact = _sum_count(products_list, 'standard_hours4_fact')
+        res_standard_hours4_div = _custom_avg(res_standard_hours4, res_standard_hours4_fact)
         res_materials = _sum_count(products_list, 'materials')
         res_materials_fact = _sum_count(products_list, 'materials_fact')
         res_materials_div = _custom_avg(res_materials, res_materials_fact)
@@ -169,6 +200,15 @@ def report_deals(request):
             'res_standard_hours': res_standard_hours,
             'res_standard_hours_fact': res_standard_hours_fact,
             'res_standard_hours_div': res_standard_hours_div,
+            'res_standard_hours2': res_standard_hours2,
+            'res_standard_hours2_fact': res_standard_hours2_fact,
+            'res_standard_hours2_div': res_standard_hours2_div,
+            'res_standard_hours3': res_standard_hours3,
+            'res_standard_hours3_fact': res_standard_hours3_fact,
+            'res_standard_hours3_div': res_standard_hours3_div,
+            'res_standard_hours4': res_standard_hours4,
+            'res_standard_hours4_fact': res_standard_hours4_fact,
+            'res_standard_hours4_div': res_standard_hours4_div,
             'res_materials': res_materials,
             'res_materials_fact': res_materials_fact,
             'res_materials_div': res_materials_div,
@@ -191,10 +231,8 @@ def report_deals(request):
             'error_description': 'Неизвестный тип запроса'
         })
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
-    user_info = get_current_user(request, '', portal,
-                                 settings_portal.is_admin_code)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
+    user_info = get_current_user(request, '', portal, settings_portal.is_admin_code)
 
     form = ReportDealsForm(request.POST or None)
 
@@ -259,25 +297,24 @@ def report_deals(request):
     productrows = ListProductRowsB24(portal, filter_for_prods)
     if show_parent_dir == 'on':
         for count, productrow in enumerate(productrows.entities):
-            if not productrow.get('productId') or int(
-                    productrow.get('productId')) <= 0:
+            if not productrow.get('productId') or int(productrow.get('productId')) <= 0:
                 continue
             try:
-                product_in_catalog = ProductInCatalogB24(
-                    portal, productrow.get('productId'))
-                section_id = product_in_catalog.properties.get(
-                    'iblockSectionId')
+                product_in_catalog = ProductInCatalogB24(portal, productrow.get('productId'))
+                section_id = product_in_catalog.properties.get('iblockSectionId')
+                plot_number = product_in_catalog.properties.get(settings_portal.plot_number_code).get('value')
                 section = CatalogSectionB24(portal, section_id)
                 section_name = section.properties.get('section').get('name')
             except RuntimeError:
                 continue
             except AttributeError:
                 section_name = 'Не указан'
+                plot_number = 'Не указан'
             productrows.entities[count]['section_name'] = section_name
+            productrows.entities[count]['plot_number'] = plot_number
     for count, productrow in enumerate(productrows.entities):
         try:
-            prodtime = ProdTimeDeal.objects.get(
-                portal=portal, product_id_b24=int(productrow.get('id')))
+            prodtime = ProdTimeDeal.objects.get(portal=portal, product_id_b24=int(productrow.get('id')))
         except ObjectDoesNotExist:
             continue
         prodtime_values = _get_prodtime_values_from_report(prodtime)
@@ -313,10 +350,8 @@ def report_production(request):
             'error_description': 'Неизвестный тип запроса'
         })
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
-    user_info = get_current_user(request, '', portal,
-                                 settings_portal.is_admin_code)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
+    user_info = get_current_user(request, '', portal, settings_portal.is_admin_code)
 
     form = ReportProductionForm(request.POST or None)
 
@@ -376,18 +411,35 @@ def get_report_stock(request):
     try:
         member_id = check_request(request)
         portal: Portals = create_portal(member_id)
-        report_stock = ReportStock(portal)
+        settings_portal = get_object_or_404(SettingsPortal, portal=portal)
     except BadRequest:
         return render(request, 'error.html',
                       {'error_name': 'QueryError', 'error_description': 'Неизвестный тип запроса'})
     except RuntimeError as ex:
         return render(request, 'error.html', {'error_name': ex.args[0], 'error_description': ex.args[1]})
 
-    user_info = get_current_user(request, '', portal, report_stock.settings_portal.is_admin_code)
+    user_info = get_current_user(request, '', portal, settings_portal.is_admin_code)
+
+    form = ReportStockForm(request.POST or None)
 
     context = {
         'title': title,
         'member_id': member_id,
+        'form': form,
+        'user': user_info,
+        'portal': portal,
+    }
+    if not form.is_valid():
+        return render(request, template, context)
+
+    params = {'show_null_min_max_stock': request.POST.get('show_null_min_max_stock'),
+              'show_article': request.POST.get('show_article')}
+    report_stock = ReportStock(portal, params)
+
+    context = {
+        'title': title,
+        'member_id': member_id,
+        'form': form,
         'user': user_info,
         'store_products': report_stock.remains_products,
         'portal': portal,

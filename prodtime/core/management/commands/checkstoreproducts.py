@@ -12,7 +12,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         portal = create_portal('895413ed6c89998e579c7d38f4faa520')
-        report_stock = ReportStock(portal)
+        report_stock = ReportStock(portal, None)
         separator = '*' * 40
 
         def check_tack(product, action, portal_obj, settings_for_report_stock, flag):

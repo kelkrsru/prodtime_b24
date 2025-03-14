@@ -284,10 +284,13 @@ class SettingsPortal(models.Model):
                                             help_text='Код свойства НЧ Уч.4 в каталоге товаров. '
                                                       'Код, который отдает метод "crm.product.get"',
                                             default='property00', max_length=30, )
+    plot_number_code = models.CharField('Код свойства Номер участка',
+                                        help_text='Код свойства Номер участка в каталоге товаров. '
+                                                  'Код, который отдает метод "crm.product.get"',
+                                        default='property560', max_length=30, )
     materials_code = models.CharField(
         verbose_name='Код свойства Материалы',
-        help_text='Код свойства Материалы в каталоге товаров. Код, '
-                  'который отдает метод "crm.product.get"',
+        help_text='Код свойства Материалы в каталоге товаров. Код, который отдает метод "crm.product.get"',
         default='property92',
         max_length=30,
     )

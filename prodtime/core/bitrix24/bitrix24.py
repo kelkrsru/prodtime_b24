@@ -42,10 +42,7 @@ class ObjB24:
 
     def _get_properties(self):
         """Получить свойства объекта."""
-        return self._check_error(self.bx24.call(
-            self.GET_PROPS_REST_METHOD,
-            {'id': self.id}
-        ))
+        return self._check_error(self.bx24.call(self.GET_PROPS_REST_METHOD, {'id': self.id}))
 
     @staticmethod
     def _check_error(result):

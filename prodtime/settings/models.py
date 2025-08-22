@@ -384,6 +384,13 @@ class SettingsForReportStock(models.Model):
         default='property00',
         max_length=30,
     )
+    considered_paid_stages = models.JSONField(
+        'Стадии, при которых товары считаются оплаченными',
+        help_text='Укажите стадии сделок. На этих стадиях остатки будут учитываться как оплаченные. Обязательно '
+                  'использовать правильный формат, напр. ["C8:4", "C8:5", "C8:UC_YJZKK5"]',
+        default=list,  # Важно: default должен быть вызываемым, а не []
+        blank=True,
+    )
     create_task = models.BooleanField(
         'Создавать задачу',
         help_text='Создавать задачу при достижении минимального остатка',

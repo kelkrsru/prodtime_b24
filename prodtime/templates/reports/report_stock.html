@@ -85,6 +85,7 @@
             <th>Название товара</th>
             <th>Остаток на складе</th>
             <th>Зарезервировано</th>
+            <th>Оплачено</th>
             <th>Остаток с учетом резерва</th>
             <th>Min</th>
             <th>Max</th>
@@ -99,6 +100,7 @@
             <td><a href="https://{{ portal.name }}/crm/catalog/15/product/{{ product.productId }}/" target="_blank">{{ product.name }}</a></td>
             <td>{{ product.amount }}</td>
             <td>{{ product.quantityReserved }}</td>
+            <td>{{ product.paid }}</td>
             <td>{{ product.quantityAvailable }}</td>
             <td>{{ product.min_stock }}</td>
             <td>{{ product.max_stock }}</td>

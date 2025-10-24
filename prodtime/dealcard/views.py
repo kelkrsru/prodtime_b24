@@ -932,7 +932,7 @@ def export_excel(request):
         prod_time = (product.prod_time.strftime('%d.%m.%Y') if product.prod_time else '')
 
         row = [
-            product.name_for_print,
+            product.name,
             product.quantity,
             product.count_days,
             prod_time,

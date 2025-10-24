@@ -83,10 +83,10 @@
         <thead>
           <tr>
             <th>Название товара</th>
-            <th>Остаток на складе</th>
+            <th>Наличие на складе</th>
             <th>Зарезервировано</th>
             <th>Оплачено</th>
-            <th>Остаток с учетом резерва</th>
+            <th>Остаток с учетом резерва и оплаты</th>
             <th>Min</th>
             <th>Max</th>
             <th>Отклонения</th>
@@ -98,12 +98,12 @@
                        {% elif product.color_max %}{{ settings_for_report_stock.background_row_max }} text-white
                        {% elif product.color_average %}{{ settings_for_report_stock.background_row_average }} text-white{% endif %}">
             <td><a href="https://{{ portal.name }}/crm/catalog/15/product/{{ product.productId }}/" target="_blank">{{ product.name }}</a></td>
-            <td>{{ product.amount }}</td>
-            <td>{{ product.quantityReserved }}</td>
-            <td>{{ product.paid }}</td>
-            <td>{{ product.quantityAvailable }}</td>
-            <td>{{ product.min_stock }}</td>
-            <td>{{ product.max_stock }}</td>
+            <td class="text-center">{{ product.amount }}</td>
+            <td class="text-center">{{ product.quantityReserved }}</td>
+            <td class="text-center">{{ product.paid }}</td>
+            <td class="text-center">{{ product.quantityAvailable }}</td>
+            <td class="text-center">{{ product.min_stock }}</td>
+            <td class="text-center">{{ product.max_stock }}</td>
             <td {% if product.color or product.color_max %}class="fw-bold"{% endif %}>{{ product.no_available }}</td>
           </tr>
           {% endfor %}

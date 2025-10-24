@@ -58,7 +58,7 @@ class ReportStock(ReportProdtime):
                 'productId': entity.get('productId'),
                 'amount': amount,
                 'quantityReserved': reserved,
-                'quantityAvailable': amount - reserved,
+                'quantityAvailable': amount - reserved, # Еще отнимается paid в _get_all_remains_products
             }
 
         entities = ListEntitiesB24(self.portal, {'storeId': self.stock_id}, 'store').entities
@@ -155,7 +155,7 @@ class ReportStock(ReportProdtime):
         if product.get(self.min_stock_code):
             min_stock = self._safe_int(product[self.min_stock_code].get('value'))
             remain_product['min_stock'] = min_stock
-            no_available = min_stock - remain_product['quantityAvailable']
+            no_available = min_stock - remain_product['amount']
             if no_available >= 0:
                 remain_product.update({
                     'no_available': f'-{no_available}',
@@ -169,7 +169,7 @@ class ReportStock(ReportProdtime):
         if product.get(self.max_stock_code):
             max_stock = self._safe_int(product[self.max_stock_code].get('value'))
             remain_product['max_stock'] = max_stock
-            no_available = remain_product['quantityAvailable'] - max_stock
+            no_available = remain_product['amount'] - max_stock
             if no_available >= 0:
                 remain_product.update({
                     'no_available': f'+{no_available}',
@@ -183,7 +183,7 @@ class ReportStock(ReportProdtime):
     def _check_average_stock(remain_product):
         if isinstance(remain_product.get('min_stock'), int) and isinstance(remain_product.get('max_stock'), int):
             avg_value = (remain_product['min_stock'] + remain_product['max_stock']) / 2
-            if remain_product['min_stock'] < remain_product['quantityAvailable'] < avg_value:
+            if remain_product['min_stock'] < remain_product['amount'] < avg_value:
                 remain_product.update({
                     'no_available': '',
                     'flag_task_average': True,
@@ -215,7 +215,10 @@ class ReportStock(ReportProdtime):
             })
 
             # уменьшаем доступное количество с учетом оплаченного
-            remain_product['quantityReserved'] = remain_product['quantityReserved'] - paid
+            # remain_product['quantityReserved'] = remain_product['quantityReserved'] - paid
+
+            # уменьшаем Остаток с учетом резерва и оплаты на количество оплаченного
+            remain_product['quantityAvailable'] -= paid
 
             if not self._filter_product(product):
                 remains_products.pop(pid, None)

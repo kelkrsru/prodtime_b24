@@ -1,6 +1,8 @@
 import datetime
 import decimal
 
+from django.utils import timezone
+
 import core.methods as core_methods
 
 from typing import Dict, Any
@@ -326,32 +328,26 @@ def create_articles(request):
     member_id = request.POST.get('member_id')
     quote_id = int(request.POST.get('quote_id'))
     portal: Portals = create_portal(member_id)
-    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal,
-                                                        portal=portal)
+    settings_portal: SettingsPortal = get_object_or_404(SettingsPortal, portal=portal)
     current_year = int(datetime.date.today().year)
     try:
         numeric = Numeric.objects.get(portal=portal, year=current_year)
         last_number_in_year = numeric.last_number
     except ObjectDoesNotExist:
-        return JsonResponse({'result': 'error', 'info': f'Нумератор для года '
-                                                        f'{current_year} '
-                                                        f'отсутствует'})
+        return JsonResponse({'result': 'error', 'info': f'Нумератор для года {current_year} отсутствует'})
 
     try:
         year_code = AssociativeYearNumber.objects.get(
             portal=portal, year=int(datetime.date.today().year)).year_code
     except ObjectDoesNotExist:
-        return JsonResponse({'result': 'error',
-                             'info': f'Код для года '
-                                     f'{datetime.date.today().year} '
-                                     f'отсутствует в таблице соответствия'})
+        return JsonResponse({'result': 'error', 'info': f'Код для года {datetime.date.today().year} отсутствует в '
+                                                          'таблице соответствия'})
 
     try:
         quote = QuoteB24(portal, quote_id)
         last_kp_number = int(quote.properties.get('UF_CRM_62D8007A7602C'))
     except RuntimeError as ex:
-        return JsonResponse({'result': 'error',
-                             'info': str(ex.args[0]) + str(ex.args[1])})
+        return JsonResponse({'result': 'error', 'info': str(ex.args[0]) + str(ex.args[1])})
 
     products = ProdTimeQuote.objects.filter(portal=portal, quote_id=quote_id)
     result_text = ''
@@ -361,21 +357,17 @@ def create_articles(request):
     for product in products:
         try:
             product_row = ProductRowB24(portal, product.product_id_b24)
-            product_in_catalog = ProductInCatalogB24(
-                portal, product_row.id_in_catalog)
+            product_in_catalog = ProductInCatalogB24(portal, product_row.id_in_catalog)
         except RuntimeError as ex:
-            return JsonResponse({'result': 'error',
-                                 'info': str(ex.args[0]) + str(ex.args[1])})
+            return JsonResponse({'result': 'error', 'info': str(ex.args[0]) + str(ex.args[1])})
 
         name = product.name_for_print
         section_id = product_in_catalog.properties.get('iblockSectionId')
-        service = product_in_catalog.properties.get(
-            settings_portal.service_code)
+        service = product_in_catalog.properties.get(settings_portal.service_code)
 
         try:
             filter_for_list = {settings_portal.real_section_code: section_id}
-            elements_section_list = section_list.get_element_filter(
-                filter_for_list)
+            elements_section_list = section_list.get_element_filter(filter_for_list)
         except RuntimeError:
             result_text += (f'Для товара {name} Невозможно получить секции '
                             f'каталога для сопоставления\n')
@@ -383,37 +375,28 @@ def create_articles(request):
         if not elements_section_list:
             new_section_id = settings_portal.default_section_id
         else:
-            new_section_id = list(elements_section_list[0].get(
-                settings_portal.copy_section_code).values())[0]
+            new_section_id = list(elements_section_list[0].get(settings_portal.copy_section_code).values())[0]
 
-        is_auto_article = product_in_catalog.properties.get(
-            settings_portal.is_auto_article_code)
-        article = product_in_catalog.properties.get(
-            settings_portal.article_code)
-        section_number = product_in_catalog.properties.get(
-            settings_portal.section_number_code)
+        is_auto_article = product_in_catalog.properties.get(settings_portal.is_auto_article_code)
+        article = product_in_catalog.properties.get(settings_portal.article_code)
+        section_number = product_in_catalog.properties.get(settings_portal.section_number_code)
         if service == 'Y':
             new_name = product.name_for_print
         else:
             if is_auto_article == 'N':
-                result_text += (f'Для товара {name} Присваивать артикул '
-                                f'автоматически выключено\n')
+                result_text += f'Для товара {name} Присваивать артикул автоматически выключено\n'
                 continue
             if not section_number or 'value' not in section_number:
-                result_text += (f'Для товара {name} Номер раздела '
-                                f'не присвоен\n')
+                result_text += f'Для товара {name} Номер раздела не присвоен\n'
                 continue
-            section_number = product_in_catalog.properties.get(
-                settings_portal.section_number_code).get('value')
+            section_number = product_in_catalog.properties.get(settings_portal.section_number_code).get('value')
             if article:
                 result_text += f'Для товара {name} артикул уже существует\n'
                 continue
 
             last_number_in_year += 1
             kp_number = last_kp_number + 1
-            article = 'ПТ{}.{}{:06}{:02}'.format(section_number, year_code,
-                                                 last_number_in_year,
-                                                 kp_number)
+            article = 'ПТ{}.{}{:06}{:02}'.format(section_number, year_code, last_number_in_year, kp_number)
             new_name = f"{product.name_for_print} ( {article} )"
 
         equivalent_code = ''.join(settings_portal.equivalent_code.split('_')).lower()
@@ -423,51 +406,40 @@ def create_articles(request):
         product_in_catalog.properties['name'] = new_name
         product_in_catalog.properties['iblockSectionId'] = new_section_id
         product_in_catalog.properties['iblockSection'] = [new_section_id]
-        product_in_catalog.properties['createdBy'] = (
-            settings_portal.responsible_id_copy_catalog)
+        product_in_catalog.properties['createdBy'] = (settings_portal.responsible_id_copy_catalog)
         product_in_catalog.properties['purchasingPrice'] = None
         product_in_catalog.properties['purchasingCurrency'] = 'RUB'
-        factory_number_code = ''.join(
-            settings_portal.factory_number_code.split('_')).lower()
+        product_in_catalog.properties['dateCreate'] = timezone.now().isoformat(timespec='seconds')
+        factory_number_code = ''.join(settings_portal.factory_number_code.split('_')).lower()
         product_in_catalog.properties[factory_number_code] = {}
         product_in_catalog.properties[factory_number_code]['value'] = 'Y'
-        product_in_catalog.properties[
-            settings_portal.is_auto_article_code] = {}
-        product_in_catalog.properties[
-            settings_portal.service_code] = {}
+        product_in_catalog.properties[settings_portal.is_auto_article_code] = {}
+        product_in_catalog.properties[settings_portal.service_code] = {}
         if service == 'Y':
-            product_in_catalog.properties[
-                settings_portal.is_auto_article_code]['valueEnum'] = 'Нет'
-            product_in_catalog.properties[
-                settings_portal.service_code]['value'] = 'Y'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Нет'
+            product_in_catalog.properties[settings_portal.service_code]['value'] = 'Y'
         else:
-            product_in_catalog.properties[
-                settings_portal.is_auto_article_code]['valueEnum'] = 'Да'
-            product_in_catalog.properties[
-                settings_portal.service_code]['value'] = 'N'
-            product_in_catalog.properties[
-                settings_portal.article_code] = article
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Да'
+            product_in_catalog.properties[settings_portal.service_code]['value'] = 'N'
+            product_in_catalog.properties[settings_portal.article_code] = article
         del product_in_catalog.properties['id']
 
         product_in_catalog.check_and_update_properties()
 
         try:
-            new_id_product_in_catalog = product_in_catalog.add().get(
-                'element').get('id')
+            new_id_product_in_catalog = product_in_catalog.add().get('element').get('id')
             product_row.properties['productId'] = new_id_product_in_catalog
             product_row.properties['productName'] = new_name
             del product_row.properties['id']
             product_row.update(product.product_id_b24)
         except RuntimeError as ex:
-            return JsonResponse({'result': 'error',
-                                 'info': f'{ex.args[0]} {ex.args[1]}'})
+            return JsonResponse({'result': 'error', 'info': f'{ex.args[0]} {ex.args[1]}'})
         if service == 'Y':
             result_text += f'Товар {name} скопирован как услуга\n'
         else:
             result_text += f'Для товара {name} артикул присвоен {article}\n'
 
-        prodtime = ProdTimeQuote.objects.get(portal=portal,
-                                             product_id_b24=product_row.id)
+        prodtime = ProdTimeQuote.objects.get(portal=portal, product_id_b24=product_row.id)
         prodtime.name_for_print = new_name
         prodtime.save()
 

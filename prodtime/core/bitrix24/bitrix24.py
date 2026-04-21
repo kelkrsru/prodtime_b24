@@ -11,7 +11,10 @@ from pybitrix24 import Bitrix24
 def create_portal(member_id: str) -> Portals:
     """Метод для создания объекта Портал с проверкой"""
 
-    portal: Portals = get_object_or_404(Portals, member_id=member_id)
+    try:
+        portal = Portals.objects.get(member_id=member_id)
+    except Portals.DoesNotExist:
+        raise ValueError(f"Портал с member_id={member_id} не найден в базе данных приложения")
 
     if ((portal.auth_id_create_date + datetime.timedelta(0, 3600)) <
             timezone.now()):
@@ -225,9 +228,7 @@ class DealB24(ObjB24):
 
     def get_all_products(self):
         """Получить все продукты сделки."""
-        self.products = self._check_error(self.bx24.call(
-            'crm.deal.productrows.get', {'id': self.id}
-        ))
+        self.products = self._check_error(self.bx24.call('crm.deal.productrows.get', {'id': self.id}))
 
     def create(self, fields):
         """Создать сделку в Битрикс24"""
@@ -239,25 +240,11 @@ class DealB24(ObjB24):
 
     def set_products(self, prods_rows):
         """Добавить товар в сделку в Битрикс24."""
-        return self._check_error(self.bx24.call(
-            'crm.deal.productrows.set',
-            {
-                'id': self.id,
-                'rows': prods_rows,
-            }
-        ))
+        return self._check_error(self.bx24.call('crm.deal.productrows.set', {'id': self.id, 'rows': prods_rows,}))
 
     def send_equivalent(self, code_equivalent, value_equivalent):
         """Обновить эквивалент в сделке."""
-        return self._check_error(self.bx24.call(
-            'crm.deal.update',
-            {
-                'id': self.id,
-                'fields': {
-                    code_equivalent: value_equivalent
-                }
-            }
-        ))
+        return self._check_error(self.bx24.call('crm.deal.update', {'id': self.id, 'fields': {code_equivalent: value_equivalent}}))
 
 
 class QuoteB24(ObjB24):

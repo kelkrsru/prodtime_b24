@@ -47,6 +47,7 @@
             </div>
             <div class="row d-flex flex-row-reverse align-items-center mt-3">
               <button class="col btn btn-outline-primary me-3" onclick="WriteFactoryNumbers()">Установить заводские номера</button>
+              <button class="col btn btn-outline-danger me-3" onclick="WriteFactoryNumbers2()">Не нажимать</button>
               <input class="col form-control me-3" type="text" id="general-number" value="{{ deal.general_number }}">
               <label class="col text-end" for="general-number">Основная часть заводского номера:</label>
             </div>
@@ -584,6 +585,24 @@
                 document.getElementById("div-loader").style.display = "none";
                 alert(response.info);
                 window.location.href = "{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}";
+            })
+            .fail(function () {
+                document.getElementById("div-loader").style.display = "none";
+                alert('Ошибка при создании заводских номеров');
+            });
+    }
+    
+    function WriteFactoryNumbers2() {
+        document.getElementById("div-loader").style.display = "block";
+        $.ajax({
+            url: "{% url 'dealcard:write-factory-numbers' %}",
+            type: "POST",
+            data: {member_id: "{{ member_id }}", deal_id: "{{ deal_id }}"},
+        })
+            .done(function (response) {
+                document.getElementById("div-loader").style.display = "none";
+                alert(response.info);
+                {#window.location.href = "{% url 'dealcard:index' %}?member_id={{ member_id }}&deal_id={{ deal_id }}";#}
             })
             .fail(function () {
                 document.getElementById("div-loader").style.display = "none";

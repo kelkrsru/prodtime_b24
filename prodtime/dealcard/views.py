@@ -17,6 +17,7 @@ from openpyxl.styles import Alignment
 
 from core.bitrix24.bitrix24 import (DealB24, ProductRowB24, SmartProcessB24, CompanyB24,
                                     ProductInCatalogB24, ListB24, create_portal, TemplateDocB24)
+from core.bitrix24.crm_classes import ProductSplitter, FactoryNumberAssigner
 from core.models import Portals
 from dealcard.serializers import ProdTimeDealSerializer
 from settings.models import SettingsPortal, Numeric, AssociativeYearNumber
@@ -92,7 +93,10 @@ def index(request):
                 if core_methods.codes_values.get(key)[1] == 'int':
                     new_value = int(value)
                 elif core_methods.codes_values.get(key)[1] == 'decimal':
-                    new_value = round(decimal.Decimal(value), 2) or 0
+                    try:
+                        new_value = round(decimal.Decimal(value or 0), 2)
+                    except (decimal.InvalidOperation, TypeError):
+                        new_value = decimal.Decimal('0.00')
                 elif core_methods.codes_values.get(key)[1] == 'bool':
                     new_value = True if value == 'Y' else False
                 else:
@@ -157,12 +161,12 @@ def index(request):
         if not next((x for x in deal_bx.products if int(x.get('ID')) == product.product_id_b24), None):
             logger.info(f'{product.id} удален из БД, так как отсутствует в сделке')
             product.delete()
+    # Обновляем после удаления
+    products_in_db = ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id).order_by('sort')
 
     # Подсчет суммарного эквивалента
-    sum_equivalent = core_methods.count_sum_equivalent(ProdTimeDeal.objects.filter(portal=portal, deal_id=deal_id))
+    sum_equivalent = core_methods.count_sum_equivalent(products_in_db)
     logger.info(f'Суммарный эквивалент равен {sum_equivalent=}')
-
-    products_in_db.order_by('sort')
 
     max_prodtime = core_methods.count_set_max_prodtime(member_id=member_id, deal_id=deal_id)
     logger.info(f'Максимальный срок производства равен {max_prodtime=}')
@@ -254,7 +258,10 @@ def update_deal(request):
                 if core_methods.codes_values.get(key)[1] == 'int':
                     new_value = int(value)
                 elif core_methods.codes_values.get(key)[1] == 'decimal':
-                    new_value = round(decimal.Decimal(value), 2) or 0
+                    try:
+                        new_value = round(decimal.Decimal(value or 0), 2)
+                    except (decimal.InvalidOperation, TypeError):
+                        new_value = decimal.Decimal('0.00')
                 elif core_methods.codes_values.get(key)[1] == 'bool':
                     new_value = True if value == 'Y' else False
                 else:
@@ -603,9 +610,15 @@ def copy_products(request):
         if service == 'Y':
             new_name = product.name_for_print
         else:
-            if is_auto_article == 'N':
+            if not is_auto_article:
+                result_text += f'Для товара {name} Присваивать артикул автоматически не указано\n'
+                continue
+            if is_auto_article.get('valueEnum') == 'Нет':
                 result_text += f'Для товара {name} Присваивать артикул автоматически выключено\n'
                 continue
+            # if is_auto_article == 'N':
+            #     result_text += f'Для товара {name} Присваивать артикул автоматически выключено\n'
+            #     continue
             if not section_number or 'value' not in section_number:
                 result_text += f'Для товара {name} Номер раздела не присвоен\n'
                 continue
@@ -641,10 +654,12 @@ def copy_products(request):
         product_in_catalog.properties[settings_portal.is_auto_article_code] = {}
         product_in_catalog.properties[settings_portal.service_code] = {}
         if service == 'Y':
-            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Нет'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueId'] = '151'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'Нет'
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'Y'
         else:
-            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Да'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueId'] = '149'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'Да'
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'N'
             product_in_catalog.properties[settings_portal.article_code] = article
         del product_in_catalog.properties['id']
@@ -727,6 +742,7 @@ def write_factory_number(request):
                         income = 0
                     new_product = ProdTimeDeal.objects.create(
                         product_id_b24=result.get('productRow').get('id'),
+                        catalog_product_id_b24=product.catalog_product_id_b24,
                         name=product.name,
                         name_for_print=product.name_for_print,
                         price=product.price,
@@ -836,6 +852,38 @@ def write_factory_number(request):
         return JsonResponse({'result': 'success', 'info': 'Нет товаров, в которых можно установить заводские номера'})
     else:
         return JsonResponse({'result': 'success', 'info': result_work})
+
+
+@xframe_options_exempt
+@csrf_exempt
+def write_factory_numbers(request):
+    """Метод создания заводских номеров. Версия 2."""
+
+    if request.method != 'POST':
+        return JsonResponse({'result': 'error', 'info': 'Только POST-запросы разрешены'})
+
+    member_id = request.POST.get('member_id')
+    deal_id = request.POST.get('deal_id')
+    if not member_id or not deal_id:
+        return JsonResponse({'result': 'error', 'info': 'Не получены member_id или deal_id'})
+
+    try:
+        portal: Portals = create_portal(member_id)
+        settings_portal = SettingsPortal.objects.get(portal=portal)
+        deal = Deal.objects.get(deal_id=deal_id, portal=portal)
+        deal_b24 = DealB24(portal, deal_id)
+    except SettingsPortal.DoesNotExist:
+        return JsonResponse({'result': 'error', 'info': f'Настройки для портала с member_id={member_id} не найдены в базе данных приложения'})
+    except Deal.DoesNotExist:
+        return JsonResponse({'result': 'error', 'info': f'Сделка deal_id={deal_id} не найдена в базе данных приложения'})
+    except Exception as ex:
+        return JsonResponse({'result': 'error', 'info': str(ex)})
+
+    service = FactoryNumberAssigner(portal, settings_portal, deal, deal_b24)
+    result = service.execute()
+    logger.info(f'{result=}')
+    return JsonResponse(result)
+
 
 
 @xframe_options_exempt

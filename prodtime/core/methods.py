@@ -19,6 +19,7 @@ SEPARATOR = '*' * 40
 codes_values = {
     'ID': ['product_id_b24', 'int'],
     'OWNER_ID': ['deal_id', 'int'],
+    'PRODUCT_ID': ['catalog_product_id_b24', 'int'],
     'PRODUCT_NAME': ['name', 'str'],
     'PRICE': ['price', 'decimal'],
     'PRICE_EXCLUSIVE': ['price_exclusive', 'decimal'],
@@ -368,7 +369,8 @@ def count_sum_equivalent(products):
     sum_equivalent = 0
     for product in products:
         if product.equivalent_count:
-            sum_equivalent += product.equivalent_count * (1 - product.bonus / 100)
+            # sum_equivalent += product.equivalent_count * (1 - product.bonus / 100)
+            sum_equivalent += product.equivalent_count
     return round(sum_equivalent, 4)
 
 

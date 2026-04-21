@@ -58,7 +58,7 @@ class ReportStock(ReportProdtime):
                 'productId': entity.get('productId'),
                 'amount': amount,
                 'quantityReserved': reserved,
-                'quantityAvailable': amount - reserved, # Еще отнимается paid в _get_all_remains_products
+                'quantityAvailable': amount # - reserved, # Еще отнимается paid в _get_all_remains_products
             }
 
         entities = ListEntitiesB24(self.portal, {'storeId': self.stock_id}, 'store').entities
@@ -155,12 +155,13 @@ class ReportStock(ReportProdtime):
         if product.get(self.min_stock_code):
             min_stock = self._safe_int(product[self.min_stock_code].get('value'))
             remain_product['min_stock'] = min_stock
-            no_available = min_stock - remain_product['amount']
+            # no_available = min_stock - remain_product['amount']
+            no_available = min_stock - remain_product['quantityAvailable']
             if no_available >= 0:
                 remain_product.update({
-                    'no_available': f'-{no_available}',
+                    'no_available': f'-{no_available}' if no_available > 0 else '0',
                     'flag_task': True,
-                    'color': True
+                    'color': True if no_available > 0 else False
                 })
         else:
             remain_product['min_stock'] = 'Не указан'
@@ -169,12 +170,13 @@ class ReportStock(ReportProdtime):
         if product.get(self.max_stock_code):
             max_stock = self._safe_int(product[self.max_stock_code].get('value'))
             remain_product['max_stock'] = max_stock
-            no_available = remain_product['amount'] - max_stock
+            # no_available = remain_product['amount'] - max_stock
+            no_available = remain_product['quantityAvailable'] - max_stock
             if no_available >= 0:
                 remain_product.update({
-                    'no_available': f'+{no_available}',
+                    'no_available': f'+{no_available}' if no_available > 0 else '0',
                     'flag_task': False,
-                    'color_max': True
+                    'color_max': True if no_available > 0 else False
                 })
         else:
             remain_product['max_stock'] = 'Не указан'
@@ -185,7 +187,7 @@ class ReportStock(ReportProdtime):
             avg_value = (remain_product['min_stock'] + remain_product['max_stock']) / 2
             if remain_product['min_stock'] < remain_product['amount'] < avg_value:
                 remain_product.update({
-                    'no_available': '',
+                    'no_available': '-',
                     'flag_task_average': True,
                     'color_average': True
                 })

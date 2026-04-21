@@ -100,6 +100,7 @@ class ProdTime(CreatedModel):
         verbose_name='ID товарной позиции',
         db_index=True,
     )
+    catalog_product_id_b24 = models.PositiveIntegerField('ID товара каталога', default=0)
     name = models.CharField(
         verbose_name='Наименование',
         max_length=1024,

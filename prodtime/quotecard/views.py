@@ -1,5 +1,6 @@
 import datetime
 import decimal
+from pprint import pprint
 
 from django.utils import timezone
 
@@ -73,6 +74,7 @@ def index(request):
     for product in quote.products:
         product_value: Dict[str, Any] = {
             'product_id_b24': int(product['ID']),
+            'catalog_product_id_b24': int(product['PRODUCT_ID']),
             'name': product['PRODUCT_NAME'],
             'name_for_print': product['PRODUCT_NAME'],
             'price': round(decimal.Decimal(product['PRICE']), 2),
@@ -131,6 +133,7 @@ def index(request):
         except ObjectDoesNotExist:
             prodtime: ProdTimeQuote = ProdTimeQuote.objects.create(
                 product_id_b24=product_value['product_id_b24'],
+                catalog_product_id_b24=product_value['catalog_product_id_b24'],
                 name=product_value['name'],
                 name_for_print=product_value['name_for_print'],
                 price=product_value['price'],
@@ -383,7 +386,10 @@ def create_articles(request):
         if service == 'Y':
             new_name = product.name_for_print
         else:
-            if is_auto_article == 'N':
+            if not is_auto_article:
+                result_text += f'Для товара {name} Присваивать артикул автоматически не указано\n'
+                continue
+            if is_auto_article.get('valueEnum') == 'Нет':
                 result_text += f'Для товара {name} Присваивать артикул автоматически выключено\n'
                 continue
             if not section_number or 'value' not in section_number:
@@ -416,10 +422,12 @@ def create_articles(request):
         product_in_catalog.properties[settings_portal.is_auto_article_code] = {}
         product_in_catalog.properties[settings_portal.service_code] = {}
         if service == 'Y':
-            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Нет'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueId'] = '151'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'Нет'
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'Y'
         else:
-            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueEnum'] = 'Да'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['valueId'] = '149'
+            product_in_catalog.properties[settings_portal.is_auto_article_code]['value'] = 'Да'
             product_in_catalog.properties[settings_portal.service_code]['value'] = 'N'
             product_in_catalog.properties[settings_portal.article_code] = article
         del product_in_catalog.properties['id']
@@ -553,6 +561,7 @@ def send_products(request):
                 product_id_b24=int(product.get('ID')))
             ProdTimeDeal.objects.create(
                 product_id_b24=deal.products[count].get('ID'),
+                catalog_product_id_b24=prodtime_in_quote.catalog_product_id_b24,
                 name=prodtime_in_quote.name,
                 name_for_print=prodtime_in_quote.name_for_print,
                 price=prodtime_in_quote.price,

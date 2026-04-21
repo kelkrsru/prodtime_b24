@@ -11,6 +11,7 @@ urlpatterns = [
     path('create-doc/', views.create_doc, name='create-doc'),
     path('copy-products/', views.copy_products, name='copy-products'),
     path('write-factory-number/', views.write_factory_number, name='write-factory-number'),
+    path('write-factory-numbers/', views.write_factory_numbers, name='write-factory-numbers'),
     path('update-factory-number/', views.update_factory_number, name='update-factory-number'),
     path('update-prodtime/', views.update_prodtime, name='update-prodtime'),
     path('send-equivalent/', views.send_equivalent, name='send-equivalent'),
